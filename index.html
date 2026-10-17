@@ -26,6 +26,8 @@
   - 🛸 רחפנים (הפתעה): עפים בגובה הראש. לא קופצים — עוברים מתחתיהם!
   - ⚡ כוחות-על (הפתעה): בועות באוויר — מגנט 🧲 מושך מטבעות, מגן 🛡️ מציל מהתנגשות אחת, כפול ✖️2 לנקודות.
   - 🏆 חגיגת שיא (הפתעה): ברגע שעוברים את השיא — קונפטי ותרועה, כבר באמצע המשחק.
+  - 🛒 חנות (רעיון של עומר): המטבעות נכנסים לקופה 💰, ובחנות קונים צבע לרובוט, סקייטבורד להבות
+    או קשת, וכובע — מצחייה, פיראט או כתר 👑. בפעם הראשונה יש מתנת פתיחה!
 
   --- אזור ההגדרות (באותיות גדולות) נמצא בתחילת הסקריפט למטה ---
   שנו מספר או צבע, שמרו (Ctrl+S), ולחצו F5 בדפדפן כדי לראות מה קרה.
@@ -166,6 +168,67 @@
     .levelBtn.chosen { border-color: #ff6d00; }
     .levelBtn b { display: block; font-size: 20px; }
     .levelBtn small { display: block; font-size: 12px; opacity: .8; margin-top: 2px; }
+    /* 🛒 החנות */
+    .shopBtn {
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: bold;
+      padding: 4px 12px;
+      border: 2px solid #ffb300;
+      border-radius: 12px;
+      background: #fff8e1;
+      color: #e65100;
+      cursor: pointer;
+    }
+    .shopHead {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+    }
+    .shopHead .big { margin: 0; }
+    .bankTag {
+      font-size: 18px;
+      background: #fff8e1;
+      border: 2px solid #ffb300;
+      border-radius: 12px;
+      padding: 4px 10px;
+    }
+    .shopBody { display: flex; gap: 12px; align-items: center; }
+    #shopPreview {
+      width: 150px;
+      height: 170px;
+      flex: none;
+      border-radius: 12px;
+      border: 2px solid #90caf9;
+      background: linear-gradient(#e1f5fe, #b3e5fc);
+    }
+    .shelves { display: flex; flex-direction: column; gap: 8px; text-align: right; }
+    .shelf { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .shelfName { font-weight: bold; font-size: 14px; min-width: 92px; }
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      padding: 4px 8px;
+      border: 2px solid #cfd8dc;
+      border-radius: 10px;
+      background: white;
+      color: #263238;
+      cursor: pointer;
+    }
+    .chip:hover { background: #fafafa; }
+    .chip.trying { border-color: #ff6d00; background: #fff3e0; }
+    .chip .sw { width: 14px; height: 14px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,.2); }
+    .chip .sw.board { width: 22px; height: 8px; border-radius: 4px; }
+    .chip .price { color: #e65100; font-weight: bold; }
+    .chip .tag { color: #2e7d32; }
+    .chip .coin { font-size: 11px; }
+    .card .stats { font-size: 16px; }
     /* הכפתור "דרגה אחרת" במסך הסיום */
     .menuBtn {
       margin-top: 10px;
@@ -196,6 +259,10 @@
       .card .big  { font-size: 22px; }
       .card .line { font-size: 15px; }
       .bigBtn { font-size: 18px; padding: 10px 20px; }
+      /* בטלפון: חלון המדידה מעל המדפים, ולא לידם */
+      .shopBody { flex-direction: column; }
+      #shopPreview { width: 120px; height: 136px; }
+      .shelfName { min-width: 0; width: 100%; }
     }
     html { overflow-x: hidden; }
     body { touch-action: manipulation; }   /* בטלפון: נגיעה כפולה לא מגדילה את הדף */
@@ -281,6 +348,31 @@ const ROBOT_EYES_COLOR = "#00e5ff";     // העיניים הזוהרות
 const ANTENNA_LIGHT_COLOR = "#ff1744";  // הנורה המהבהבת על האנטנה
 const BOARD_COLOR = "#ff6d00";          // הסקייטבורד
 const WHEEL_COLOR = "#ffeb3b";          // הגלגלים
+
+// --- חנות 🛒 (רעיון של עומר) ---
+// המטבעות שאוספים נכנסים לקופה 💰, ובחנות קונים בהם דברים לרובוט.
+// price = כמה מטבעות זה עולה (0 = חינם). אפשר לשנות מחירים, שמות וצבעים!
+const WELCOME_GIFT = 50;      // מתנת פתיחה: כמה מטבעות מקבלים בפעם הראשונה שנכנסים לחנות
+const SHOP = {
+  color: [   // 🎨 הצבע של הרובוט: body = הגוף והראש, dark = הידיים, הרגליים והקווים
+    { id: "silver", name: "כסוף",   price: 0,   body: ROBOT_COLOR, dark: ROBOT_DARK_COLOR },
+    { id: "red",    name: "אדום",   price: 30,  body: "#ef5350", dark: "#b71c1c" },
+    { id: "teal",   name: "טורקיז", price: 30,  body: "#4dd0e1", dark: "#00838f" },
+    { id: "pink",   name: "ורוד",   price: 50,  body: "#f48fb1", dark: "#c2185b" },
+    { id: "gold",   name: "זהב",    price: 200, body: "#ffd54f", dark: "#c79100" }
+  ],
+  board: [   // 🛹 הסקייטבורד
+    { id: "orange",  name: "כתום",     price: 0 },
+    { id: "flames",  name: "להבות",    price: 80 },
+    { id: "rainbow", name: "קשת בענן", price: 120 }
+  ],
+  hat: [     // 🎩 הכובע
+    { id: "none",   name: "בלי",    price: 0 },
+    { id: "cap",    name: "מצחייה", price: 40 },
+    { id: "pirate", name: "פיראט",  price: 100 },
+    { id: "crown",  name: "כתר",    price: 250 }
+  ]
+};
 
 // --- הצבעים של העיר ---
 const SKY_TOP_COLOR = "#4fc3f7";        // השמיים למעלה
@@ -371,6 +463,17 @@ let doubleTime = 0;         // ✖️2 טיימר: כמה זמן נשאר לכפ
 let shieldOn = false;       // 🛡️ האם יש לנו מגן?
 let droneHintShown = false; // 🛸 האם כבר הסברנו במשחק הזה "רחפן! לא קופצים!"
 let recordCelebrated = false; // 🏆 האם כבר חגגנו שיא חדש במשחק הזה
+
+// --- 🛒 החנות: הקופה, מה קנינו, ומה הרובוט לובש. הכול נשמר בדפדפן ---
+let bank = loadJSON("omer-skate-bank", 0);        // 💰 כמה מטבעות יש בקופה
+let owned = loadJSON("omer-skate-owned", []);    // מה כבר קנינו, למשל "hat:crown"
+let skin = loadSkin();                           // מה הרובוט לובש עכשיו: צבע, סקייטבורד וכובע
+let shopOpen = false;       // האם החנות פתוחה עכשיו?
+let shopFrom = "start";     // לאן חוזרים כשסוגרים את החנות ("start" או "over")
+let shopTry = null;         // מה הרובוט "מודד" עכשיו בחנות
+let shopPick = null;        // פריט שבחרנו ועוד לא קנינו: { cat, id }
+let shopMsg = "";           // הודעה קטנה בחנות ("קנית!", "חסרים עוד...")
+let lookOverride = null;    // כשמציירים את הרובוט בחלון המדידה — המראה שהוא מודד
 
 // --- הרובוט ---
 const robot = {
@@ -602,6 +705,11 @@ function crash(reason) {
     newRecord = true;
     saveBest(best);
   }
+  // 💰 המטבעות שאספנו נכנסים לקופה של החנות
+  if (coinsCollected > 0) {
+    bank += coinsCollected;
+    saveJSON("omer-skate-bank", bank);
+  }
   updateScoreboard();
   showOverScreen();
 }
@@ -694,6 +802,11 @@ function soundRecord() {        // 🏆 שיא חדש — תרועת ניצחו�
     beep("square", notes[i], notes[i], i === notes.length - 1 ? 0.4 : 0.12, times[i], 0.18);
   }
 }
+function soundBuy() {           // 🛒 קנייה — "צ'ה-צ'ינג" של קופה
+  beep("square", 1046, 1046, 0.08, 0, 0.2);
+  beep("square", 1568, 1568, 0.25, 0.08, 0.2);
+  beep("triangle", 523, 1046, 0.3, 0.16, 0.3);
+}
 function soundPoof() {          // 🎁 קסם — ארבעה צלילים שעולים כמו מדרגות (דו, מי, סול, דו)
   const notes = [523, 659, 784, 1047];
   for (let i = 0; i < notes.length; i++) {
@@ -742,8 +855,9 @@ function showStartScreen() {
     '<div class="line">עזרו לרובוט לקפוץ מעל המכשולים ברחוב!</div>' +
     '<div class="line">' + JUMP_HOW + ' · ' + FLIP_HOW + '</div>' +
     '<div class="line">כל ' + prizeEvery() + ' מטבעות <span class="coin"></span> = מכשול נעלם 🎁 · רמפות 🛹 מעיפות גבוה</div>' +
-    '<div class="line gold">חדש! 🌙 לילה · 🛸 רחפנים · ⚡ כוחות-על</div>' +
-    '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') + '</div>' +
+    '<div class="line gold">חדש! 🌙 לילה · 🛸 רחפנים · ⚡ כוחות-על · 🛒 חנות</div>' +
+    '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') +
+    ' &nbsp; <button class="shopBtn" data-shop-open="1">🛒 חנות · 💰 ' + bank + '</button></div>' +
     '<div class="levels">' + buttons + '</div>';
   overlay.classList.remove("hidden");
 }
@@ -754,17 +868,132 @@ function showOverScreen() {
      crashReason === "drone" ? '<div class="big">🛸 אוי! התנגשת ברחפן!</div>' +
                                '<div class="small">טיפ: מתחת לרחפן לא קופצים — עוברים מתחתיו</div>' :
                                '<div class="big">💥 אוי! הרובוט נתקע!</div>') +
-    '<div class="line">דרגה: ' + level.ICON + ' ' + level.NAME + '</div>' +
-    '<div class="line">צברת <span class="gold">' + score + '</span> נקודות</div>' +
-    (tricks > 0 ? '<div class="line">עשית <span class="gold">' + tricks + '</span> סלטות 🤸</div>' : '') +
-    (coinsCollected > 0 ? '<div class="line">אספת <span class="gold">' + coinsCollected + '</span> מטבעות <span class="coin"></span></div>' : '') +
-    (poofs > 0 ? '<div class="line">העלמת <span class="gold">' + poofs + '</span> מכשולים 🎁</div>' : '') +
-    (ramps > 0 ? '<div class="line">עפת מ-<span class="gold">' + ramps + '</span> רמפות 🛹</div>' : '') +
+    '<div class="line">דרגה ' + level.ICON + ' ' + level.NAME + ' · צברת <span class="gold">' + score + '</span> נקודות</div>' +
+    overStats() +
     (newRecord ? '<div class="line gold">🏆 שיא חדש! כל הכבוד!</div>' : '') +
+    '<div class="line">💰 ' + (coinsCollected > 0 ? '<span class="gold">+' + coinsCollected + '</span> לקופה · ' : '') +
+      'בקופה: <b>' + bank + '</b> <span class="coin"></span></div>' +
     '<button class="bigBtn">עוד פעם! 🔄</button> ' +
-    '<button class="menuBtn" data-menu="1">🎚️ דרגה אחרת</button>' +
+    '<button class="menuBtn" data-menu="1">🎚️ דרגה אחרת</button> ' +
+    '<button class="menuBtn" data-shop-open="1">🛒 חנות</button>' +
     (TOUCH ? '' : '<div class="small">(או לחצו רווח)</div>');
   overlay.classList.remove("hidden");
+}
+
+// שורת סיכום קצרה: סלטות, מטבעות, העלמות ורמפות (רק מה שהיה במשחק הזה)
+function overStats() {
+  const parts = [];
+  if (tricks > 0) parts.push("🤸 " + tricks + " סלטות");
+  if (coinsCollected > 0) parts.push('<span class="coin"></span> ' + coinsCollected + " מטבעות");
+  if (poofs > 0) parts.push("🎁 " + poofs + " העלמות");
+  if (ramps > 0) parts.push("🛹 " + ramps + " רמפות");
+  return parts.length ? '<div class="line stats">' + parts.join(" · ") + '</div>' : '';
+}
+
+// ------------------------------------------------------------
+//  🛒 החנות של הרובוט
+// ------------------------------------------------------------
+const SHOP_SHELVES = [["color", "🎨 צבע"], ["board", "🛹 סקייטבורד"], ["hat", "🎩 כובע"]];
+
+function openShop() {
+  shopFrom = state === "over" ? "over" : "start";
+  shopOpen = true;
+  shopTry = Object.assign({}, skin);
+  shopPick = null;
+  shopMsg = "";
+  // 🎁 מתנת פתיחה — רק בפעם הראשונה שנכנסים לחנות
+  if (!loadJSON("omer-skate-gift", false)) {
+    bank += WELCOME_GIFT;
+    saveJSON("omer-skate-bank", bank);
+    saveJSON("omer-skate-gift", true);
+    shopMsg = "🎁 מתנת פתיחה: " + WELCOME_GIFT + " מטבעות לקופה!";
+    soundPoof();
+  }
+  renderShop();
+}
+
+function closeShop() {
+  shopOpen = false;
+  if (shopFrom === "over") showOverScreen(); else showStartScreen();
+}
+
+// דוגמית קטנה של כל פריט: עיגול בצבע, פס של הסקייטבורד, או סמל של הכובע
+function swatch(cat, it) {
+  if (cat === "color") return '<span class="sw" style="background:' + it.body + '"></span>';
+  if (cat === "board") {
+    const bg = it.id === "flames" ? "linear-gradient(90deg,#b71c1c,#ff6d00,#ffea00)" :
+               it.id === "rainbow" ? "linear-gradient(90deg,#e53935,#fb8c00,#fdd835,#43a047,#1e88e5,#8e24aa)" :
+               BOARD_COLOR;
+    return '<span class="sw board" style="background:' + bg + '"></span>';
+  }
+  const icons = { none: "—", cap: "🧢", pirate: "☠", crown: "👑" };
+  return '<span class="hatIcon">' + (icons[it.id] || "🎩") + '</span>';
+}
+
+function renderShop() {
+  let shelves = "";
+  for (const [cat, title] of SHOP_SHELVES) {
+    let chips = "";
+    for (const it of SHOP[cat]) {
+      const own = isOwned(cat, it.id);
+      const worn = skin[cat] === it.id;
+      chips +=
+        '<button class="chip' + (shopTry[cat] === it.id ? ' trying' : '') + '" data-cat="' + cat + '" data-id="' + it.id + '">' +
+        swatch(cat, it) + it.name +
+        (worn ? ' <b class="tag">✓</b>' : own ? '' : ' <span class="price">' + it.price + '</span><span class="coin"></span>') +
+        '</button>';
+    }
+    shelves += '<div class="shelf"><span class="shelfName">' + title + '</span>' + chips + '</div>';
+  }
+  let buy = "";
+  if (shopPick) {
+    const it = findItem(shopPick.cat, shopPick.id);
+    buy = '<button class="bigBtn" data-buy="1">לקנות ב-' + it.price + ' <span class="coin"></span></button> ';
+  }
+  card.innerHTML =
+    '<div class="shopHead"><span class="big">🛒 החנות של הרובוט</span>' +
+    '<span class="bankTag">💰 בקופה: <b>' + bank + '</b> <span class="coin"></span></span></div>' +
+    '<div class="shopBody"><canvas id="shopPreview" width="150" height="170"></canvas>' +
+    '<div class="shelves">' + shelves + '</div></div>' +
+    '<div class="line ' + (shopMsg ? 'gold' : 'small') + '">' +
+      (shopMsg || 'לוחצים על פריט — והרובוט מודד אותו 👀') + '</div>' +
+    '<div>' + buy + '<button class="menuBtn" data-shop-close="1">סיימתי ✔</button></div>';
+  overlay.classList.remove("hidden");
+}
+
+// לחצו על פריט: הרובוט מודד אותו. אם כבר קנינו אותו — הוא גם לובש אותו
+function shopClick(cat, id) {
+  shopTry = Object.assign({}, skin);
+  shopTry[cat] = id;
+  shopMsg = "";
+  if (isOwned(cat, id)) {
+    skin[cat] = id;
+    saveJSON("omer-skate-skin", skin);
+    shopPick = null;
+  } else {
+    shopPick = { cat: cat, id: id };
+  }
+  renderShop();
+}
+
+// לקנות: אם יש מספיק מטבעות בקופה — הפריט שלנו, והרובוט לובש אותו
+function shopBuy() {
+  if (!shopPick) return;
+  const it = findItem(shopPick.cat, shopPick.id);
+  if (bank < it.price) {
+    shopMsg = "חסרים עוד " + (it.price - bank) + " מטבעות. עוד קצת משחק ותגיע לזה! 💪";
+  } else {
+    bank -= it.price;
+    owned.push(shopPick.cat + ":" + shopPick.id);
+    skin[shopPick.cat] = shopPick.id;
+    saveJSON("omer-skate-bank", bank);
+    saveJSON("omer-skate-owned", owned);
+    saveJSON("omer-skate-skin", skin);
+    shopMsg = "🎉 קנית: " + it.name + "! הרובוט כבר לובש את זה";
+    shopPick = null;
+    soundBuy();
+  }
+  renderShop();
 }
 
 function updateScoreboard() {
@@ -798,6 +1027,38 @@ function loadBest() {
 function saveBest(value) {
   try { localStorage.setItem(bestKey(), value); } catch (e) {}
 }
+// 🛒 שמירה וקריאה של דברים מסובכים יותר (רשימות ואוספים) בזיכרון של הדפדפן
+function loadJSON(key, fallback) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key));
+    return value === null || value === undefined ? fallback : value;
+  } catch (e) { return fallback; }
+}
+function saveJSON(key, value) {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+}
+// מה הרובוט לובש (ואם משהו לא קיים בחנות — חוזרים לבגדים הרגילים)
+function loadSkin() {
+  const s = Object.assign({ color: "silver", board: "orange", hat: "none" }, loadJSON("omer-skate-skin", {}));
+  for (const cat of ["color", "board", "hat"]) {
+    if (!findItem(cat, s[cat])) s[cat] = SHOP[cat][0].id;
+  }
+  return s;
+}
+function findItem(cat, id) {
+  return SHOP[cat].find(it => it.id === id);
+}
+function isOwned(cat, id) {
+  const it = findItem(cat, id);
+  return !!it && (it.price === 0 || owned.indexOf(cat + ":" + id) >= 0);
+}
+// המראה של הרובוט עכשיו: הצבעים, הסקייטבורד והכובע
+function currentLook() {
+  const s = lookOverride || skin;
+  const color = findItem("color", s.color) || SHOP.color[0];
+  return { body: color.body, dark: color.dark, board: s.board, hat: s.hat };
+}
+
 // הדפדפן זוכר איזו דרגה בחרנו בפעם האחרונה
 function loadLevel() {
   try { const k = localStorage.getItem("omer-skate-level"); return LEVELS[k] ? k : "medium"; }
@@ -811,6 +1072,13 @@ function saveLevel(key) {
 //  🎯 המקלדת, העכבר והמגע
 // ------------------------------------------------------------
 document.addEventListener("keydown", function (e) {
+  // 🛒 כשהחנות פתוחה — המקשים לא מתחילים משחק (Escape = סוגרים את החנות)
+  if (shopOpen) {
+    if (e.code === "Space" || e.code === "ArrowUp") e.preventDefault();
+    if (e.code === "Escape") closeShop();
+    if (e.code === "KeyM" && !e.repeat) toggleSound();
+    return;
+  }
   if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
     e.preventDefault();               // שהרווח לא יגלול את הדף
     if (!e.repeat) pressJump();       // לחיצה ארוכה = קפיצה אחת בלבד
@@ -828,9 +1096,22 @@ canvas.addEventListener("pointerdown", function (e) {
   e.preventDefault();
   pressJump();
 });
-// לחיצה על החלון שמעל המשחק: כפתור דרגה, כפתור "דרגה אחרת", או סתם לחיצה (= עוד פעם)
+// לחיצה על החלון שמעל המשחק: כפתור דרגה, כפתור "דרגה אחרת", חנות, או סתם לחיצה (= עוד פעם)
 overlay.addEventListener("click", function (e) {
   const btn = e.target.closest("button");
+  // 🛒 בתוך החנות: פריט, קנייה או "סיימתי". לחיצה על מקום ריק לא עושה כלום
+  if (shopOpen) {
+    if (!btn) return;
+    if (btn.dataset.cat) shopClick(btn.dataset.cat, btn.dataset.id);
+    else if (btn.dataset.buy) shopBuy();
+    else if (btn.dataset.shopClose) closeShop();
+    return;
+  }
+  if (btn && btn.dataset.shopOpen) {
+    startAudio();
+    openShop();
+    return;
+  }
   if (btn && btn.dataset.level) {
     startAudio();
     chooseLevel(btn.dataset.level);
@@ -1861,8 +2142,77 @@ function roundRect(x, y, w, h, r) {
   ctx.closePath();
 }
 
+// 🛹 הצבעים של הסקייטבורד (לפי מה שקנינו בחנות)
+function boardPaint(kind, x) {
+  if (kind === "flames") {
+    const g = ctx.createLinearGradient(x - 36, 0, x + 36, 0);
+    g.addColorStop(0, "#b71c1c"); g.addColorStop(0.5, "#ff6d00"); g.addColorStop(1, "#ffea00");
+    return { under: "#5d1000", main: g, shine: "rgba(255, 245, 157, 0.9)" };
+  }
+  if (kind === "rainbow") {
+    const g = ctx.createLinearGradient(x - 36, 0, x + 36, 0);
+    const colors = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa"];
+    for (let i = 0; i < colors.length; i++) g.addColorStop(i / (colors.length - 1), colors[i]);
+    return { under: "#311b92", main: g, shine: "rgba(255, 255, 255, 0.7)" };
+  }
+  return { under: shade(BOARD_COLOR, -0.4), main: BOARD_COLOR, shine: shade(BOARD_COLOR, 0.45) };
+}
+
+// 🎩 הכובע (לפי מה שקנינו בחנות). הראש של הרובוט: מ-x-16 עד x+16, והחלק העליון שלו ב-y-90.
+// הכובעים לא עולים מעל y-107, כדי שעדיין יהיה רווח מתחת לרחפנים
+function drawHat(kind, x, y) {
+  if (kind === "cap") {
+    ctx.fillStyle = "#1565c0";                                         // הכיפה
+    ctx.beginPath(); ctx.arc(x, y - 89, 15, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#0d47a1";                                         // המצחייה — קדימה
+    roundRect(x + 6, y - 92, 20, 5, 2.5);
+    ctx.fill();
+    ctx.fillStyle = "white";                                           // הכפתור למעלה
+    ctx.beginPath(); ctx.arc(x, y - 104, 2.2, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "pirate") {
+    ctx.fillStyle = "#212121";                                         // כובע פיראט שחור
+    ctx.beginPath();
+    ctx.moveTo(x - 22, y - 89);
+    ctx.quadraticCurveTo(x - 14, y - 95, x - 10, y - 106);
+    ctx.quadraticCurveTo(x, y - 101, x + 10, y - 106);
+    ctx.quadraticCurveTo(x + 14, y - 95, x + 22, y - 89);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "#ffd600";                                       // פס זהב
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(x - 20, y - 90); ctx.quadraticCurveTo(x, y - 94, x + 20, y - 90); ctx.stroke();
+    ctx.fillStyle = "white";                                           // גולגולת קטנה ☠
+    ctx.beginPath(); ctx.arc(x, y - 99, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "white";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x - 4, y - 97); ctx.lineTo(x + 4, y - 94);
+    ctx.moveTo(x + 4, y - 97); ctx.lineTo(x - 4, y - 94);
+    ctx.stroke();
+  } else if (kind === "crown") {
+    const g = ctx.createLinearGradient(x - 15, 0, x + 15, 0);          // כתר זהב מבריק
+    g.addColorStop(0, "#c79100"); g.addColorStop(0.6, "#fff176"); g.addColorStop(1, "#ffb300");
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(x - 15, y - 89);
+    ctx.lineTo(x - 15, y - 102);
+    ctx.lineTo(x - 8, y - 95);
+    ctx.lineTo(x, y - 105);
+    ctx.lineTo(x + 8, y - 95);
+    ctx.lineTo(x + 15, y - 102);
+    ctx.lineTo(x + 15, y - 89);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#e53935";                                         // אבני חן
+    ctx.beginPath(); ctx.arc(x, y - 93, 2.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1e88e5";
+    ctx.beginPath(); ctx.arc(x - 8, y - 92, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 8, y - 92, 1.8, 0, Math.PI * 2); ctx.fill();
+  }
+}
+
 function drawRobot(now) {
   const x = robot.x, y = robot.y;
+  const look = currentLook();          // 🛒 מה הרובוט לובש (מהחנות)
+  const BODY = look.body, DARK = look.dark;
 
   // צל על המדרכה — קטן יותר כשהרובוט גבוה באוויר
   const height = GROUND_Y - y;
@@ -1910,15 +2260,24 @@ function drawRobot(now) {
     ctx.lineTo(x + 24, y - 13 + dy);
     ctx.quadraticCurveTo(x + 32, y - 13 + dy, x + 36, y - 21 + dy);
   }
+  const paint = boardPaint(look.board, x);        // 🛒 הסקייטבורד שקנינו בחנות
   ctx.lineCap = "round";
   ctx.lineWidth = 6;
-  ctx.strokeStyle = shade(BOARD_COLOR, -0.4);
+  ctx.strokeStyle = paint.under;
   deckPath(3); ctx.stroke();
-  ctx.strokeStyle = BOARD_COLOR;
+  ctx.strokeStyle = paint.main;
   deckPath(0); ctx.stroke();
-  ctx.strokeStyle = shade(BOARD_COLOR, 0.45);     // פס אור דק על הקרש
+  ctx.strokeStyle = paint.shine;                  // פס אור דק על הקרש
   ctx.lineWidth = 1.5;
   deckPath(-2); ctx.stroke();
+  // 🔥 לסקייטבורד הלהבות יש אש קטנה מאחור כשנוסעים
+  if (look.board === "flames" && !robot.crashed && (state === "playing" || lookOverride)) {
+    const f = 7 + Math.sin(now / 40) * 3;
+    ctx.fillStyle = "rgba(255, 112, 0, 0.85)";
+    ctx.beginPath(); ctx.moveTo(x - 37, y - 22); ctx.lineTo(x - 37 - f * 1.7, y - 18); ctx.lineTo(x - 37, y - 14); ctx.fill();
+    ctx.fillStyle = "rgba(255, 234, 0, 0.9)";
+    ctx.beginPath(); ctx.moveTo(x - 37, y - 20); ctx.lineTo(x - 37 - f, y - 18); ctx.lineTo(x - 37, y - 16); ctx.fill();
+  }
 
   // צבע של מתכת: כהה משמאל ומבריק מימין (השמש מימין)
   function metal(left, right, color) {
@@ -1930,9 +2289,9 @@ function drawRobot(now) {
   }
 
   // --- רגליים וכפות רגליים ---
-  ctx.fillStyle = metal(x - 12, x - 4, ROBOT_DARK_COLOR);
+  ctx.fillStyle = metal(x - 12, x - 4, DARK);
   ctx.fillRect(x - 12, y - 34, 8, 18);
-  ctx.fillStyle = metal(x + 4, x + 12, ROBOT_DARK_COLOR);
+  ctx.fillStyle = metal(x + 4, x + 12, DARK);
   ctx.fillRect(x + 4, y - 34, 8, 18);
   ctx.fillStyle = "#546e7a";
   ctx.fillRect(x - 15, y - 20, 13, 4);
@@ -1941,7 +2300,7 @@ function drawRobot(now) {
   // --- ידיים: לצדדים לשיווי משקל, ולמעלה כשקופצים ---
   const armsUp = !robot.onGround || robot.crashed;
   const handY = armsUp ? y - 76 : y - 48;
-  ctx.strokeStyle = ROBOT_DARK_COLOR;
+  ctx.strokeStyle = DARK;
   ctx.lineWidth = 6;
   ctx.beginPath(); ctx.moveTo(x - 16, y - 55); ctx.lineTo(x - 33, handY); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x + 16, y - 55); ctx.lineTo(x + 33, handY); ctx.stroke();
@@ -1950,10 +2309,10 @@ function drawRobot(now) {
   ctx.beginPath(); ctx.arc(x + 33, handY, 4.5, 0, Math.PI * 2); ctx.fill();
 
   // --- גוף מתכת מבריק, עם לוח קטן ושלוש נורות ---
-  ctx.fillStyle = metal(x - 18, x + 18, ROBOT_COLOR);
+  ctx.fillStyle = metal(x - 18, x + 18, BODY);
   roundRect(x - 18, y - 62, 36, 30, 6);
   ctx.fill();
-  ctx.strokeStyle = ROBOT_DARK_COLOR;
+  ctx.strokeStyle = DARK;
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.fillStyle = "rgba(255, 255, 255, 0.6)";     // הברק של המתכת
@@ -1968,12 +2327,12 @@ function drawRobot(now) {
   }
 
   // --- צוואר וראש ---
-  ctx.fillStyle = ROBOT_DARK_COLOR;
+  ctx.fillStyle = DARK;
   ctx.fillRect(x - 4, y - 67, 8, 6);
-  ctx.fillStyle = metal(x - 16, x + 16, ROBOT_COLOR);
+  ctx.fillStyle = metal(x - 16, x + 16, BODY);
   roundRect(x - 16, y - 90, 32, 24, 6);
   ctx.fill();
-  ctx.strokeStyle = ROBOT_DARK_COLOR;
+  ctx.strokeStyle = DARK;
   ctx.stroke();
 
   // --- המשקף והעיניים ---
@@ -2012,15 +2371,41 @@ function drawRobot(now) {
   else ctx.arc(x, y - 73, 4, 0.15 * Math.PI, 0.85 * Math.PI);
   ctx.stroke();
 
-  // --- אנטנה עם נורה מהבהבת ---
-  ctx.strokeStyle = ROBOT_DARK_COLOR;
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(x, y - 90); ctx.lineTo(x, y - 99); ctx.stroke();
-  const blink = Math.floor(now / 400) % 2 === 0;
-  ctx.fillStyle = blink ? ANTENNA_LIGHT_COLOR : "#ff8a80";
-  ctx.beginPath(); ctx.arc(x, y - 102, 4, 0, Math.PI * 2); ctx.fill();
+  // --- אנטנה עם נורה מהבהבת (או כובע מהחנות במקומה) ---
+  if (look.hat !== "none") {
+    drawHat(look.hat, x, y);
+  } else {
+    ctx.strokeStyle = DARK;
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(x, y - 90); ctx.lineTo(x, y - 99); ctx.stroke();
+    const blink = Math.floor(now / 400) % 2 === 0;
+    ctx.fillStyle = blink ? ANTENNA_LIGHT_COLOR : "#ff8a80";
+    ctx.beginPath(); ctx.arc(x, y - 102, 4, 0, Math.PI * 2); ctx.fill();
+  }
 
   ctx.restore();
+}
+
+// 👀 חלון המדידה בחנות: מציירים את הרובוט בגדול, עם מה שהוא מודד עכשיו
+function drawShopPreview(now) {
+  const pc = document.getElementById("shopPreview");
+  if (!pc) return;
+  const pctx = pc.getContext("2d");
+  pctx.setTransform(1, 0, 0, 1, 0, 0);
+  pctx.clearRect(0, 0, pc.width, pc.height);
+  pctx.fillStyle = "#cfd8dc";                       // רצפה קטנה
+  pctx.fillRect(0, pc.height - 14, pc.width, 14);
+  // מזיזים את הרובוט לרגע לחלון המדידה, מציירים, ומחזירים אותו למקום
+  const saved = { x: robot.x, y: robot.y, vy: robot.vy, onGround: robot.onGround, flipping: robot.flipping,
+                  crashed: robot.crashed, onRamp: robot.onRamp };
+  Object.assign(robot, { x: 56, y: 118, vy: 0, onGround: true, flipping: false, crashed: false, onRamp: null });
+  lookOverride = shopTry;
+  ctx = pctx;
+  pctx.setTransform(1.3, 0, 0, 1.3, 2, 4);          // בגדול: פי 1.3
+  drawRobot(now);
+  ctx = mainCtx;
+  lookOverride = null;
+  Object.assign(robot, saved);
 }
 
 function drawPopups() {
@@ -2049,6 +2434,7 @@ function loop(now) {
 
   if (state === "playing") update(dt);
   draw(now);
+  if (shopOpen) drawShopPreview(now);   // 🛒 הרובוט בחלון המדידה של החנות
   requestAnimationFrame(loop);
 }
 
