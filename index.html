@@ -28,6 +28,10 @@
   - 🏆 חגיגת שיא (הפתעה): ברגע שעוברים את השיא — קונפטי ותרועה, כבר באמצע המשחק.
   - 🛒 חנות (רעיון של עומר): המטבעות נכנסים לקופה 💰, ובחנות קונים צבע לרובוט, סקייטבורד להבות
     או קשת, וכובע — מצחייה, פיראט או כתר 👑. בפעם הראשונה יש מתנת פתיחה!
+  - 👤 שמות (רעיון של עומר): כותבים שם לפני שמשחקים, ולכל שם יש קופה, בגדים ושיאים משלו.
+    ♾️ קוד צ׳יט: מי שכותב "עומר" מקבל כסף בלי סוף! (השמות האלה ב-RICH_NAMES)
+  - 🛸 סקייטבורד מעופף (רעיון של עומר): בחנות. בלי גלגלים, ומחזיקים את הקפיצה כדי לרחף לאט למטה.
+    ועוד בחנות: שובל נצנצים או קשת ✨, צבעים סגול ושחור, ואוזני חתול 🐱
 
   --- אזור ההגדרות (באותיות גדולות) נמצא בתחילת הסקריפט למטה ---
   שנו מספר או צבע, שמרו (Ctrl+S), ולחצו F5 בדפדפן כדי לראות מה קרה.
@@ -168,6 +172,21 @@
     .levelBtn.chosen { border-color: #ff6d00; }
     .levelBtn b { display: block; font-size: 20px; }
     .levelBtn small { display: block; font-size: 12px; opacity: .8; margin-top: 2px; }
+    /* 👤 השדה לשם של השחקן */
+    #nameInput {
+      font-family: inherit;
+      font-size: 17px;
+      width: 150px;
+      padding: 5px 10px;
+      border: 2px solid #90a4ae;
+      border-radius: 10px;
+      text-align: center;
+      direction: rtl;
+    }
+    #nameInput:focus { outline: none; border-color: #ff6d00; }
+    #nameInput.missing { border-color: #e53935; background: #ffebee; }
+    #nameHint { color: #c62828; min-height: 0; margin: 0; }
+    #nameHint:empty { display: none; }
     /* 🛒 החנות */
     .shopBtn {
       font-family: inherit;
@@ -205,16 +224,20 @@
       border: 2px solid #90caf9;
       background: linear-gradient(#e1f5fe, #b3e5fc);
     }
-    .shelves { display: flex; flex-direction: column; gap: 8px; text-align: right; }
-    .shelf { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
-    .shelfName { font-weight: bold; font-size: 14px; min-width: 92px; }
+    .shelves { display: flex; flex-direction: column; gap: 6px; text-align: right; }
+    .shelf { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+    .shelfName { font-weight: bold; font-size: 13px; min-width: 80px; }
+    /* בחנות החלון קצת יותר צפוף, כדי שכל המדפים ייכנסו */
+    .card.shopMode { padding: 12px 18px; }
+    .card.shopMode .big { font-size: 26px; }
+    .card.shopMode .bigBtn, .card.shopMode .menuBtn { margin-top: 6px; padding-top: 8px; padding-bottom: 8px; }
     .chip {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
+      gap: 3px;
       font-family: inherit;
-      font-size: 13px;
-      padding: 4px 8px;
+      font-size: 12px;
+      padding: 3px 6px;
       border: 2px solid #cfd8dc;
       border-radius: 10px;
       background: white;
@@ -254,6 +277,8 @@
         background: rgba(0, 0, 0, .35);
         padding: 16px;
         z-index: 10;
+        overflow-y: auto;            /* אם החלון ארוך מהמסך — אפשר לגלול בו */
+        align-items: safe center;
       }
       .card { padding: 14px 16px; }
       .card .big  { font-size: 22px; }
@@ -273,6 +298,7 @@
   <h1 id="title">עומר על גלגלים 🛹</h1>
   <p id="help">רווח / חץ למעלה / קליק = קפיצה · עוד לחיצה באוויר = סלטה 🤸</p>
   <div id="scoreboard">
+    <span id="playerTag"></span>
     נקודות: <b id="score">0</b> &nbsp;|&nbsp; <span class="coin"></span> מטבעות: <b id="coins">0</b>
     &nbsp;|&nbsp; <span id="prizeMeter" title="כל כמה מטבעות = מכשול נעלם!"></span>
     &nbsp;|&nbsp; 🏆 שיא <span id="bestLevel"></span>: <b id="best">0</b>
@@ -353,26 +379,38 @@ const WHEEL_COLOR = "#ffeb3b";          // הגלגלים
 // המטבעות שאוספים נכנסים לקופה 💰, ובחנות קונים בהם דברים לרובוט.
 // price = כמה מטבעות זה עולה (0 = חינם). אפשר לשנות מחירים, שמות וצבעים!
 const WELCOME_GIFT = 50;      // מתנת פתיחה: כמה מטבעות מקבלים בפעם הראשונה שנכנסים לחנות
+// ♾️ קוד הצ׳יט של המפתח (רעיון של עומר): מי שכותב אחד מהשמות האלה מקבל כסף בלי סוף!
+const RICH_NAMES = ["עומר", "Omer"];
 const SHOP = {
   color: [   // 🎨 הצבע של הרובוט: body = הגוף והראש, dark = הידיים, הרגליים והקווים
     { id: "silver", name: "כסוף",   price: 0,   body: ROBOT_COLOR, dark: ROBOT_DARK_COLOR },
     { id: "red",    name: "אדום",   price: 30,  body: "#ef5350", dark: "#b71c1c" },
     { id: "teal",   name: "טורקיז", price: 30,  body: "#4dd0e1", dark: "#00838f" },
+    { id: "purple", name: "סגול",   price: 40,  body: "#9575cd", dark: "#4527a0" },
     { id: "pink",   name: "ורוד",   price: 50,  body: "#f48fb1", dark: "#c2185b" },
+    { id: "black",  name: "שחור נינג׳ה", price: 60, body: "#607d8b", dark: "#212121" },
     { id: "gold",   name: "זהב",    price: 200, body: "#ffd54f", dark: "#c79100" }
   ],
   board: [   // 🛹 הסקייטבורד
     { id: "orange",  name: "כתום",     price: 0 },
     { id: "flames",  name: "להבות",    price: 80 },
-    { id: "rainbow", name: "קשת בענן", price: 120 }
+    { id: "rainbow", name: "קשת בענן", price: 120 },
+    { id: "hover",   name: "מעופף",    price: 300 }   // 🛸 בלי גלגלים — ומחזיקים קפיצה כדי לרחף!
+  ],
+  trail: [   // ✨ השובל שנשאר מאחורי הרובוט כשהוא נוסע
+    { id: "none",    name: "בלי",      price: 0 },
+    { id: "sparkle", name: "נצנצים",   price: 60 },
+    { id: "rainbow", name: "קשת",      price: 150 }
   ],
   hat: [     // 🎩 הכובע
-    { id: "none",   name: "בלי",    price: 0 },
-    { id: "cap",    name: "מצחייה", price: 40 },
-    { id: "pirate", name: "פיראט",  price: 100 },
-    { id: "crown",  name: "כתר",    price: 250 }
+    { id: "none",   name: "בלי",        price: 0 },
+    { id: "cap",    name: "מצחייה",     price: 40 },
+    { id: "cat",    name: "אוזני חתול", price: 60 },
+    { id: "pirate", name: "פיראט",      price: 100 },
+    { id: "crown",  name: "כתר",        price: 250 }
   ]
 };
+const HOVER_FALL = 1.5;       // 🛸 כמה מהר הסקייטבורד המעופף יורד כשמחזיקים את הקפיצה (קטן = מרחף לאט יותר)
 
 // --- הצבעים של העיר ---
 const SKY_TOP_COLOR = "#4fc3f7";        // השמיים למעלה
@@ -423,6 +461,7 @@ const coinsEl = document.getElementById("coins");
 const prizeMeterEl = document.getElementById("prizeMeter");
 const bestEl = document.getElementById("best");
 const bestLevelEl = document.getElementById("bestLevel");
+const playerTagEl = document.getElementById("playerTag");
 
 // שם המשחק מופיע בכותרת ובלשונית של הדפדפן
 document.getElementById("title").textContent = GAME_NAME + " 🛹";
@@ -440,7 +479,10 @@ let levelKey = loadLevel(); // איזו דרגה בחרנו: "easy" / "medium" /
 let level = LEVELS[levelKey];   // ההגדרות של הדרגה הזאת (מהטבלה למעלה)
 let score = 0;              // כמה נקודות צברנו
 let tricks = 0;             // כמה סלטות שלמות עשינו במשחק הזה
-let best = loadBest();      // השיא של הדרגה הזאת — נשמר בדפדפן גם אחרי שסוגרים אותו
+// 👤 מי משחק עכשיו. לכל שם יש "פרופיל" משלו: קופה, בגדים ושיאים (נשמר בדפדפן)
+let player = loadJSON("omer-skate-player", "");
+let profile = loadProfile(player);
+let best = loadBest();      // השיא של השחקן הזה בדרגה הזאת
 let newRecord = false;      // האם הפעם שברנו שיא?
 let crashReason = "";       // למה נתקענו: "" = מכשול, "flip" = נחיתה באמצע סלטה
 let speed = level.START_SPEED;  // המהירות של הרחוב עכשיו
@@ -465,9 +507,9 @@ let droneHintShown = false; // 🛸 האם כבר הסברנו במשחק הזה
 let recordCelebrated = false; // 🏆 האם כבר חגגנו שיא חדש במשחק הזה
 
 // --- 🛒 החנות: הקופה, מה קנינו, ומה הרובוט לובש. הכול נשמר בדפדפן ---
-let bank = loadJSON("omer-skate-bank", 0);        // 💰 כמה מטבעות יש בקופה
-let owned = loadJSON("omer-skate-owned", []);    // מה כבר קנינו, למשל "hat:crown"
-let skin = loadSkin();                           // מה הרובוט לובש עכשיו: צבע, סקייטבורד וכובע
+let bank = profile.bank;    // 💰 כמה מטבעות יש בקופה של השחקן
+let owned = profile.owned;  // מה הוא כבר קנה, למשל "hat:crown"
+let skin = profile.skin;    // מה הרובוט שלו לובש: צבע, סקייטבורד וכובע
 let shopOpen = false;       // האם החנות פתוחה עכשיו?
 let shopFrom = "start";     // לאן חוזרים כשסוגרים את החנות ("start" או "over")
 let shopTry = null;         // מה הרובוט "מודד" עכשיו בחנות
@@ -485,8 +527,11 @@ const robot = {
   flipping: false,  // האם הוא באמצע סלטה?
   flipAngle: 0,     // כמה מעלות הוא כבר הסתובב בסלטה (0 עד 360)
   onRamp: null,     // על איזו רמפה הוא נוסע עכשיו (null = על אף רמפה)
+  gliding: false,   // 🛸 האם הוא מרחף עכשיו עם הסקייטבורד המעופף?
   crashed: false    // האם הוא נתקע במכשול?
 };
+let jumpHeld = false;   // 🛸 האם מחזיקים עכשיו את כפתור הקפיצה (בשביל הריחוף)
+let trailTick = 0;      // ✨ סופר רגעים בשביל השובל
 
 // הגודל של הרמפה: רוחב וגובה (בפיקסלים)
 const RAMP_W = 90;
@@ -637,10 +682,15 @@ function startGame() {
   robot.flipping = false;
   robot.flipAngle = 0;
   robot.crashed = false;
+  robot.gliding = false;
   jumpBuffer = 0;
   newRecord = false;
   overlay.classList.add("hidden");
   if (document.activeElement) document.activeElement.blur();
+  // 🛸 מי שיש לו סקייטבורד מעופף — מזכירים לו איך מרחפים
+  if (skin.board === "hover") {
+    addPopup("🛸 מחזיקים את הקפיצה = מרחפים!", "rtl", "#00838f", 0, W / 2, 60, 0.008);
+  }
   updateScoreboard();
 }
 
@@ -665,7 +715,10 @@ function doJump() {
 // מה קורה כשלוחצים על כפתור הקפיצה — תלוי איפה אנחנו במשחק
 function pressJump() {
   startAudio();             // הדפדפן מרשה צלילים רק אחרי שלוחצים על משהו — אז מדליקים את הרמקול עכשיו
-  if (state === "start") { startGame(); return; }
+  if (state === "start") {
+    if (ensurePlayer()) startGame();         // 👤 מתחילים רק כשיש שם
+    return;
+  }
   if (state === "over") {
     // מחכים חצי שנייה אחרי שנתקעים, כדי שלחיצה של קפיצה לא תתחיל משחק חדש בטעות
     if (performance.now() - overTime > 600) startGame();
@@ -708,7 +761,7 @@ function crash(reason) {
   // 💰 המטבעות שאספנו נכנסים לקופה של החנות
   if (coinsCollected > 0) {
     bank += coinsCollected;
-    saveJSON("omer-skate-bank", bank);
+    saveProfile();
   }
   updateScoreboard();
   showOverScreen();
@@ -842,6 +895,7 @@ showSoundButton();
 function showStartScreen() {
   state = "start";
   robot.crashed = false;
+  card.classList.remove("shopMode");
   // שלושה כפתורים — אחד לכל דרגה. הדרגה שבחרנו בפעם הקודמת מסומנת
   let buttons = "";
   for (const key of ["easy", "medium", "hard"]) {
@@ -856,23 +910,40 @@ function showStartScreen() {
     '<div class="line">' + JUMP_HOW + ' · ' + FLIP_HOW + '</div>' +
     '<div class="line">כל ' + prizeEvery() + ' מטבעות <span class="coin"></span> = מכשול נעלם 🎁 · רמפות 🛹 מעיפות גבוה</div>' +
     '<div class="line gold">חדש! 🌙 לילה · 🛸 רחפנים · ⚡ כוחות-על · 🛒 חנות</div>' +
-    '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') +
-    ' &nbsp; <button class="shopBtn" data-shop-open="1">🛒 חנות · 💰 ' + bank + '</button></div>' +
+    '<div class="line nameRow">👤 <b>השם שלי:</b> ' +
+      '<input id="nameInput" maxlength="12" autocomplete="off" placeholder="כתבו כאן את השם" value="' + escapeHtml(player) + '">' +
+      ' <button class="shopBtn" data-shop-open="1">🛒 חנות · 💰 ' + bankText() + '</button></div>' +
+    '<div class="line small" id="nameHint"></div>' +
+    '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') + '</div>' +
     '<div class="levels">' + buttons + '</div>';
   overlay.classList.remove("hidden");
 }
 
+// 👤 לפני שמתחילים משחק (או נכנסים לחנות) — חייבים שם. מחזיר true אם יש שם
+function ensurePlayer() {
+  const input = document.getElementById("nameInput");
+  if (!input) return !!player;              // לא במסך הפתיחה — כבר יש שחקן
+  if (usePlayer(input.value)) return true;
+  input.classList.add("missing");           // אין שם? מסמנים את השדה באדום ומבקשים לכתוב
+  const hint = document.getElementById("nameHint");
+  if (hint) hint.textContent = "✍️ כתבו קודם את השם שלכם, ואז בוחרים דרגה";
+  input.focus();
+  return false;
+}
+
 function showOverScreen() {
+  card.classList.remove("shopMode");
   card.innerHTML =
     (crashReason === "flip"  ? '<div class="big">🤕 אוי! נחתת באמצע סלטה!</div>' :
      crashReason === "drone" ? '<div class="big">🛸 אוי! התנגשת ברחפן!</div>' +
                                '<div class="small">טיפ: מתחת לרחפן לא קופצים — עוברים מתחתיו</div>' :
                                '<div class="big">💥 אוי! הרובוט נתקע!</div>') +
-    '<div class="line">דרגה ' + level.ICON + ' ' + level.NAME + ' · צברת <span class="gold">' + score + '</span> נקודות</div>' +
+    '<div class="line">' + escapeHtml(player) + ', צברת <span class="gold">' + score + '</span> נקודות' +
+      ' · דרגה ' + level.ICON + ' ' + level.NAME + '</div>' +
     overStats() +
-    (newRecord ? '<div class="line gold">🏆 שיא חדש! כל הכבוד!</div>' : '') +
+    (newRecord ? '<div class="line gold">🏆 שיא חדש! כל הכבוד, ' + escapeHtml(player) + '!</div>' : '') +
     '<div class="line">💰 ' + (coinsCollected > 0 ? '<span class="gold">+' + coinsCollected + '</span> לקופה · ' : '') +
-      'בקופה: <b>' + bank + '</b> <span class="coin"></span></div>' +
+      'בקופה: <b>' + bankText() + '</b> <span class="coin"></span></div>' +
     '<button class="bigBtn">עוד פעם! 🔄</button> ' +
     '<button class="menuBtn" data-menu="1">🎚️ דרגה אחרת</button> ' +
     '<button class="menuBtn" data-shop-open="1">🛒 חנות</button>' +
@@ -893,7 +964,7 @@ function overStats() {
 // ------------------------------------------------------------
 //  🛒 החנות של הרובוט
 // ------------------------------------------------------------
-const SHOP_SHELVES = [["color", "🎨 צבע"], ["board", "🛹 סקייטבורד"], ["hat", "🎩 כובע"]];
+const SHOP_SHELVES = [["color", "🎨 צבע"], ["board", "🛹 סקייטבורד"], ["trail", "✨ שובל"], ["hat", "🎩 כובע"]];
 
 function openShop() {
   shopFrom = state === "over" ? "over" : "start";
@@ -901,11 +972,13 @@ function openShop() {
   shopTry = Object.assign({}, skin);
   shopPick = null;
   shopMsg = "";
-  // 🎁 מתנת פתיחה — רק בפעם הראשונה שנכנסים לחנות
-  if (!loadJSON("omer-skate-gift", false)) {
+  if (isRich()) {
+    shopMsg = "♾️ כסף בלי סוף — אתה המפתח! קנה מה שבא לך 😎";
+  } else if (!profile.gift) {
+    // 🎁 מתנת פתיחה — רק בפעם הראשונה שהשחקן נכנס לחנות
     bank += WELCOME_GIFT;
-    saveJSON("omer-skate-bank", bank);
-    saveJSON("omer-skate-gift", true);
+    profile.gift = true;
+    saveProfile();
     shopMsg = "🎁 מתנת פתיחה: " + WELCOME_GIFT + " מטבעות לקופה!";
     soundPoof();
   }
@@ -914,6 +987,7 @@ function openShop() {
 
 function closeShop() {
   shopOpen = false;
+  card.classList.remove("shopMode");
   if (shopFrom === "over") showOverScreen(); else showStartScreen();
 }
 
@@ -923,10 +997,17 @@ function swatch(cat, it) {
   if (cat === "board") {
     const bg = it.id === "flames" ? "linear-gradient(90deg,#b71c1c,#ff6d00,#ffea00)" :
                it.id === "rainbow" ? "linear-gradient(90deg,#e53935,#fb8c00,#fdd835,#43a047,#1e88e5,#8e24aa)" :
+               it.id === "hover" ? "linear-gradient(90deg,#5e35b1,#00e5ff)" :
                BOARD_COLOR;
-    return '<span class="sw board" style="background:' + bg + '"></span>';
+    return '<span class="sw board" style="background:' + bg + '"></span>' + (it.id === "hover" ? "🛸" : "");
   }
-  const icons = { none: "—", cap: "🧢", pirate: "☠", crown: "👑" };
+  if (cat === "trail") {
+    if (it.id === "none") return '<span class="hatIcon">—</span>';
+    const bg = it.id === "rainbow" ? "linear-gradient(90deg,#e53935,#fdd835,#43a047,#1e88e5,#8e24aa)" :
+                                     "radial-gradient(circle,#fff59d 30%,#ffb300 70%)";
+    return '<span class="sw" style="background:' + bg + '"></span>';
+  }
+  const icons = { none: "—", cap: "🧢", cat: "🐱", pirate: "☠", crown: "👑" };
   return '<span class="hatIcon">' + (icons[it.id] || "🎩") + '</span>';
 }
 
@@ -952,12 +1033,14 @@ function renderShop() {
   }
   card.innerHTML =
     '<div class="shopHead"><span class="big">🛒 החנות של הרובוט</span>' +
-    '<span class="bankTag">💰 בקופה: <b>' + bank + '</b> <span class="coin"></span></span></div>' +
+    '<span class="bankTag">💰 בקופה: <b>' + bankText() + '</b> <span class="coin"></span></span></div>' +
     '<div class="shopBody"><canvas id="shopPreview" width="150" height="170"></canvas>' +
     '<div class="shelves">' + shelves + '</div></div>' +
     '<div class="line ' + (shopMsg ? 'gold' : 'small') + '">' +
-      (shopMsg || 'לוחצים על פריט — והרובוט מודד אותו 👀') + '</div>' +
+      (shopMsg || (shopTry.board === "hover" ? '🛸 הסקייטבורד המעופף: מחזיקים את הקפיצה — ומרחפים!'
+                                             : 'לוחצים על פריט — והרובוט מודד אותו 👀')) + '</div>' +
     '<div>' + buy + '<button class="menuBtn" data-shop-close="1">סיימתי ✔</button></div>';
+  card.classList.add("shopMode");
   overlay.classList.remove("hidden");
 }
 
@@ -968,7 +1051,7 @@ function shopClick(cat, id) {
   shopMsg = "";
   if (isOwned(cat, id)) {
     skin[cat] = id;
-    saveJSON("omer-skate-skin", skin);
+    saveProfile();
     shopPick = null;
   } else {
     shopPick = { cat: cat, id: id };
@@ -980,15 +1063,13 @@ function shopClick(cat, id) {
 function shopBuy() {
   if (!shopPick) return;
   const it = findItem(shopPick.cat, shopPick.id);
-  if (bank < it.price) {
+  if (!isRich() && bank < it.price) {
     shopMsg = "חסרים עוד " + (it.price - bank) + " מטבעות. עוד קצת משחק ותגיע לזה! 💪";
   } else {
-    bank -= it.price;
+    if (!isRich()) bank -= it.price;          // ♾️ למי שיש כסף בלי סוף — הקופה לא יורדת
     owned.push(shopPick.cat + ":" + shopPick.id);
     skin[shopPick.cat] = shopPick.id;
-    saveJSON("omer-skate-bank", bank);
-    saveJSON("omer-skate-owned", owned);
-    saveJSON("omer-skate-skin", skin);
+    saveProfile();
     shopMsg = "🎉 קנית: " + it.name + "! הרובוט כבר לובש את זה";
     shopPick = null;
     soundBuy();
@@ -1001,6 +1082,8 @@ function updateScoreboard() {
   coinsEl.textContent = coinsCollected;
   bestEl.textContent = best;
   bestLevelEl.textContent = level.ICON;   // ליד השיא: באיזו דרגה הוא
+  // 👤 מי משחק עכשיו (ולמי שיש כסף בלי סוף — גם ∞)
+  playerTagEl.innerHTML = player ? "👤 <b>" + escapeHtml(player) + "</b>" + (isRich() ? " ♾️" : "") + " &nbsp;|&nbsp; " : "";
   // מד הפרס: כמה מטבעות כבר יש לנו בדרך לפרס הבא (זהב = יש, אפור = עוד חסר)
   const filled = coinsCollected % prizeEvery();
   let meter = "🎁 ";
@@ -1015,17 +1098,108 @@ function prizeEvery() {
   return Math.max(1, Math.round(COINS_FOR_PRIZE));
 }
 
-// השיא נשמר בזיכרון של הדפדפן (ואם הדפדפן לא מרשה — פשוט לא שומרים).
-// לכל דרגה יש שיא משלה. השיא הישן (מלפני שהיו דרגות) הוא השיא של "בינוני"
-function bestKey() {
-  return levelKey === "medium" ? "omer-skate-best" : "omer-skate-best-" + levelKey;
+// ------------------------------------------------------------
+//  👤 שחקנים: לכל שם יש פרופיל משלו — קופה, מה קנה, מה הרובוט לובש, ושיא לכל דרגה
+// ------------------------------------------------------------
+function profileKey(name) { return "omer-skate-profile:" + name; }
+
+function emptyProfile() {
+  return { bank: 0, owned: [], skin: { color: "silver", board: "orange", trail: "none", hat: "none" }, gift: false,
+           best: { easy: 0, medium: 0, hard: 0 } };
 }
+
+// מסדרים פרופיל: משלימים מה שחסר, ומחליפים פריט שכבר לא קיים בחנות בבגדים הרגילים
+function fixProfile(p) {
+  const fresh = emptyProfile();
+  p = Object.assign(fresh, p);
+  p.skin = Object.assign(emptyProfile().skin, p.skin);
+  p.best = Object.assign(emptyProfile().best, p.best);
+  if (!Array.isArray(p.owned)) p.owned = [];
+  for (const cat of Object.keys(SHOP)) {
+    if (!findItem(cat, p.skin[cat])) p.skin[cat] = SHOP[cat][0].id;
+  }
+  return p;
+}
+
+// מה שנשמר במחשב הזה לפני שהיו שמות (שיאים, קופה ובגדים)
+function oldSavedData() {
+  const num = key => parseInt(loadJSON(key, 0)) || 0;
+  return fixProfile({
+    bank: num("omer-skate-bank"),
+    owned: loadJSON("omer-skate-owned", []),
+    skin: loadJSON("omer-skate-skin", {}),
+    gift: loadJSON("omer-skate-gift", false),
+    best: { easy: num("omer-skate-best-easy"), medium: num("omer-skate-best"), hard: num("omer-skate-best-hard") }
+  });
+}
+
+// טוענים את הפרופיל של שחקן. שחקן חדש מקבל פרופיל ריק —
+// חוץ מהשחקן הראשון במחשב, שמקבל את כל מה שנשמר לפני שהיו שמות
+function loadProfile(name) {
+  if (!name) return emptyProfile();
+  const saved = loadJSON(profileKey(name), null);
+  if (saved) return fixProfile(saved);
+  let p = emptyProfile();
+  if (!loadJSON("omer-skate-migrated", false)) {
+    p = oldSavedData();
+    saveJSON("omer-skate-migrated", true);
+  }
+  saveJSON(profileKey(name), p);
+  return p;
+}
+
+// שומרים את הפרופיל של השחקן שמשחק עכשיו
+function saveProfile() {
+  if (!player) return;
+  profile.bank = bank;
+  profile.owned = owned;
+  profile.skin = skin;
+  saveJSON(profileKey(player), profile);
+}
+
+// מנקים שם: בלי רווחים מיותרים, ועד 12 אותיות
+function cleanName(name) {
+  return String(name || "").replace(/\s+/g, " ").trim().slice(0, 12);
+}
+
+// עוברים לשחקן (לפי השם). מחזיר false אם אין שם
+function usePlayer(name) {
+  name = cleanName(name);
+  if (!name) return false;
+  if (name !== player) {
+    player = name;
+    saveJSON("omer-skate-player", player);
+    profile = loadProfile(player);
+    bank = profile.bank;
+    owned = profile.owned;
+    skin = profile.skin;
+  }
+  best = loadBest();
+  updateScoreboard();
+  return true;
+}
+
+// ♾️ האם לשחקן הזה יש כסף בלי סוף? (השמות ב-RICH_NAMES בראש הקוד)
+function isRich() {
+  return RICH_NAMES.some(n => n.toLowerCase() === player.toLowerCase());
+}
+// כמה כסף בקופה — כמספר, או ∞ למי שיש לו כסף בלי סוף
+function bankText() {
+  return isRich() ? "∞" : String(bank);
+}
+
+// שם שמכניסים לתוך HTML — בלי סימנים שיכולים לשבור את הדף
+function escapeHtml(text) {
+  return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+
+// השיא של השחקן בדרגה הנוכחית
 function loadBest() {
-  try { return parseInt(localStorage.getItem(bestKey())) || 0; }
-  catch (e) { return 0; }
+  return (profile.best && profile.best[levelKey]) || 0;
 }
 function saveBest(value) {
-  try { localStorage.setItem(bestKey(), value); } catch (e) {}
+  profile.best[levelKey] = value;
+  saveProfile();
 }
 // 🛒 שמירה וקריאה של דברים מסובכים יותר (רשימות ואוספים) בזיכרון של הדפדפן
 function loadJSON(key, fallback) {
@@ -1036,14 +1210,6 @@ function loadJSON(key, fallback) {
 }
 function saveJSON(key, value) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
-}
-// מה הרובוט לובש (ואם משהו לא קיים בחנות — חוזרים לבגדים הרגילים)
-function loadSkin() {
-  const s = Object.assign({ color: "silver", board: "orange", hat: "none" }, loadJSON("omer-skate-skin", {}));
-  for (const cat of ["color", "board", "hat"]) {
-    if (!findItem(cat, s[cat])) s[cat] = SHOP[cat][0].id;
-  }
-  return s;
 }
 function findItem(cat, id) {
   return SHOP[cat].find(it => it.id === id);
@@ -1056,7 +1222,7 @@ function isOwned(cat, id) {
 function currentLook() {
   const s = lookOverride || skin;
   const color = findItem("color", s.color) || SHOP.color[0];
-  return { body: color.body, dark: color.dark, board: s.board, hat: s.hat };
+  return { body: color.body, dark: color.dark, board: s.board, trail: s.trail || "none", hat: s.hat };
 }
 
 // הדפדפן זוכר איזו דרגה בחרנו בפעם האחרונה
@@ -1072,6 +1238,15 @@ function saveLevel(key) {
 //  🎯 המקלדת, העכבר והמגע
 // ------------------------------------------------------------
 document.addEventListener("keydown", function (e) {
+  // 👤 כותבים את השם — המקשים כותבים אותיות ולא מקפיצים את הרובוט. Enter = מתחילים לשחק!
+  if (e.target && e.target.id === "nameInput") {
+    e.target.classList.remove("missing");
+    if (e.key === "Enter" && !e.repeat) {
+      e.preventDefault();
+      if (ensurePlayer()) { startAudio(); startGame(); }
+    }
+    return;
+  }
   // 🛒 כשהחנות פתוחה — המקשים לא מתחילים משחק (Escape = סוגרים את החנות)
   if (shopOpen) {
     if (e.code === "Space" || e.code === "ArrowUp") e.preventDefault();
@@ -1081,12 +1256,14 @@ document.addEventListener("keydown", function (e) {
   }
   if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
     e.preventDefault();               // שהרווח לא יגלול את הדף
+    jumpHeld = true;                  // 🛸 מחזיקים את הקפיצה (בשביל הריחוף)
     if (!e.repeat) pressJump();       // לחיצה ארוכה = קפיצה אחת בלבד
   }
   if (e.code === "KeyM" && !e.repeat) toggleSound();   // M = השתקה / צלילים
   // 1 / 2 / 3 = בחירת דרגה (רק כשלא באמצע משחק)
   const digits = { Digit1: "easy", Digit2: "medium", Digit3: "hard", Numpad1: "easy", Numpad2: "medium", Numpad3: "hard" };
   if (digits[e.code] && state !== "playing" && !e.repeat) {
+    if (!ensurePlayer()) return;
     startAudio();
     chooseLevel(digits[e.code]);
     startGame();
@@ -1094,10 +1271,19 @@ document.addEventListener("keydown", function (e) {
 });
 canvas.addEventListener("pointerdown", function (e) {
   e.preventDefault();
+  jumpHeld = true;                    // 🛸 מחזיקים את האצבע / העכבר על המשחק
   pressJump();
 });
+// 🛸 עוזבים את הקפיצה — מפסיקים לרחף
+document.addEventListener("keyup", function (e) {
+  if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") jumpHeld = false;
+});
+window.addEventListener("pointerup", function () { jumpHeld = false; });
+window.addEventListener("pointercancel", function () { jumpHeld = false; });
+window.addEventListener("blur", function () { jumpHeld = false; });
 // לחיצה על החלון שמעל המשחק: כפתור דרגה, כפתור "דרגה אחרת", חנות, או סתם לחיצה (= עוד פעם)
 overlay.addEventListener("click", function (e) {
+  if (e.target.closest("input")) return;     // 👤 לחיצה על השדה של השם — רק כותבים, לא מתחילים
   const btn = e.target.closest("button");
   // 🛒 בתוך החנות: פריט, קנייה או "סיימתי". לחיצה על מקום ריק לא עושה כלום
   if (shopOpen) {
@@ -1108,11 +1294,13 @@ overlay.addEventListener("click", function (e) {
     return;
   }
   if (btn && btn.dataset.shopOpen) {
+    if (!ensurePlayer()) return;             // לחנות נכנסים עם שם — כי לכל שחקן קופה משלו
     startAudio();
     openShop();
     return;
   }
   if (btn && btn.dataset.level) {
+    if (!ensurePlayer()) return;
     startAudio();
     chooseLevel(btn.dataset.level);
     startGame();
@@ -1166,11 +1354,15 @@ function update(dt) {
   // 4. הקפיצה וכוח המשיכה
   if (!robot.onGround) {
     robot.vy += GRAVITY * dt;       // כוח המשיכה מושך למטה קצת בכל רגע
+    // 🛸 הסקייטבורד המעופף: מחזיקים את הקפיצה בזמן שיורדים — ומרחפים לאט, כמו מצנח
+    robot.gliding = skin.board === "hover" && jumpHeld && robot.vy > HOVER_FALL;
+    if (robot.gliding) robot.vy = HOVER_FALL;
     robot.y += robot.vy * dt;       // הרובוט זז לפי המהירות שלו
     if (robot.y >= GROUND_Y) {      // נגע ברצפה? נוחתים!
       robot.y = GROUND_Y;
       robot.vy = 0;
       robot.onGround = true;
+      robot.gliding = false;
       missedFlip();
       if (state !== "playing") return;   // נחתנו על הראש בדרגה קשה — המשחק נגמר
       if (jumpBuffer > 0) doJump();
@@ -1178,6 +1370,7 @@ function update(dt) {
   }
   if (jumpBuffer > 0) jumpBuffer -= dt;
   robot.wheelAngle += speed * dt / 6;
+  if (skin.trail !== "none") emitTrail();    // ✨ השובל מאחורי הסקייטבורד
 
   // 5. מכשולים חדשים
   nextObstacleIn -= speed * dt;
@@ -1337,6 +1530,22 @@ function shieldSaves(o) {
   burst(robot.x, robot.y - 50, "#64b5f6", 24);
   addPopup("המגן הציל אותך!", "rtl", "#1565c0", 30);
   soundShield();
+}
+
+// ✨ השובל: בכל רגע שני יוצא נצנץ קטן מהזנב של הסקייטבורד, והרחוב "לוקח" אותו אחורה
+function emitTrail() {
+  trailTick++;
+  if (trailTick % 2) return;
+  let color;
+  if (skin.trail === "rainbow") {               // 🌈 קשת: הצבעים באים אחד אחרי השני
+    const rainbow = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa"];
+    color = rainbow[Math.floor(trailTick / 2) % rainbow.length];
+  } else {                                      // ✨ נצנצים: זהב וצהוב
+    const gold = ["#fff59d", "#ffd600", "#ffe082", "#fffde7"];
+    color = gold[Math.floor(Math.random() * gold.length)];
+  }
+  sparkles.push({ x: robot.x - 34, y: robot.y - 14 + rand(-3, 3), vx: -rand(0.5, 1.5), vy: rand(-0.6, 0.2),
+                  size: rand(2, 3.5), color: color, life: 1, fade: 0.045 });
 }
 
 // פיצוץ קטן של נצנצים בצבע אחד
@@ -2155,6 +2364,11 @@ function boardPaint(kind, x) {
     for (let i = 0; i < colors.length; i++) g.addColorStop(i / (colors.length - 1), colors[i]);
     return { under: "#311b92", main: g, shine: "rgba(255, 255, 255, 0.7)" };
   }
+  if (kind === "hover") {
+    const g = ctx.createLinearGradient(x - 36, 0, x + 36, 0);
+    g.addColorStop(0, "#5e35b1"); g.addColorStop(1, "#00e5ff");
+    return { under: "#1a0d3d", main: g, shine: "rgba(178, 255, 255, 0.95)" };
+  }
   return { under: shade(BOARD_COLOR, -0.4), main: BOARD_COLOR, shine: shade(BOARD_COLOR, 0.45) };
 }
 
@@ -2169,6 +2383,17 @@ function drawHat(kind, x, y) {
     ctx.fill();
     ctx.fillStyle = "white";                                           // הכפתור למעלה
     ctx.beginPath(); ctx.arc(x, y - 104, 2.2, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "cat") {
+    for (const side of [-1, 1]) {                                      // 🐱 שתי אוזניים משולשות
+      ctx.fillStyle = "#fb8c00";
+      ctx.beginPath();
+      ctx.moveTo(x + side * 15, y - 88); ctx.lineTo(x + side * 11, y - 101); ctx.lineTo(x + side * 4, y - 89);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = "#f8bbd0";                                       // הצד הוורוד בפנים
+      ctx.beginPath();
+      ctx.moveTo(x + side * 13, y - 89); ctx.lineTo(x + side * 11, y - 97); ctx.lineTo(x + side * 7, y - 89);
+      ctx.closePath(); ctx.fill();
+    }
   } else if (kind === "pirate") {
     ctx.fillStyle = "#212121";                                         // כובע פיראט שחור
     ctx.beginPath();
@@ -2236,8 +2461,24 @@ function drawRobot(now) {
     ctx.translate(-x, -(y - 50));
   }
 
+  // --- 🛸 סקייטבורד מעופף: במקום גלגלים — שני מנועי סילון שזוהרים (חזק יותר כשמרחפים) ---
+  if (look.board === "hover") {
+    const power = robot.gliding ? 1.6 : 1;
+    for (const jx of [x - 20, x + 20]) {
+      const flick = 0.85 + 0.15 * Math.sin(now / 35 + jx);
+      const jg = ctx.createRadialGradient(jx, y - 8, 1, jx, y - 6, 10 * power * flick);
+      jg.addColorStop(0, "rgba(224, 247, 250, 0.95)");
+      jg.addColorStop(0.4, "rgba(0, 229, 255, 0.7)");
+      jg.addColorStop(1, "rgba(0, 229, 255, 0)");
+      ctx.fillStyle = jg;
+      ctx.beginPath(); ctx.ellipse(jx, y - 4, 9 * power, 7 * power * flick, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "#37474f";                       // המנוע עצמו, מתחת לקרש
+      roundRect(jx - 5, y - 13, 10, 5, 2);
+      ctx.fill();
+    }
+  }
   // --- גלגלים (מסתובבים!) — בהירים בצד של השמש, כהים בצד השני ---
-  for (const wx of [x - 20, x + 20]) {
+  for (const wx of (look.board === "hover" ? [] : [x - 20, x + 20])) {
     const wg = ctx.createRadialGradient(wx + 2, y - 8, 1, wx, y - 6, 6);
     wg.addColorStop(0, shade(WHEEL_COLOR, 0.6));
     wg.addColorStop(1, shade(WHEEL_COLOR, -0.3));
@@ -2402,6 +2643,17 @@ function drawShopPreview(now) {
   lookOverride = shopTry;
   ctx = pctx;
   pctx.setTransform(1.3, 0, 0, 1.3, 2, 4);          // בגדול: פי 1.3
+  // ✨ השובל שהרובוט מודד — כמה נקודות צבעוניות מאחורי הסקייטבורד
+  if (shopTry.trail && shopTry.trail !== "none") {
+    const dots = shopTry.trail === "rainbow" ? ["#8e24aa", "#1e88e5", "#43a047", "#fdd835", "#fb8c00", "#e53935"]
+                                             : ["#fff59d", "#ffd600", "#ffe082", "#ffd600", "#fff59d", "#ffb300"];
+    for (let i = 0; i < dots.length; i++) {
+      pctx.fillStyle = dots[i];
+      pctx.globalAlpha = 0.35 + i * 0.11;
+      pctx.beginPath(); pctx.arc(1 + i * 3.4, 104 + Math.sin(now / 200 + i) * 2, 2.4, 0, Math.PI * 2); pctx.fill();
+    }
+    pctx.globalAlpha = 1;
+  }
   drawRobot(now);
   ctx = mainCtx;
   lookOverride = null;
