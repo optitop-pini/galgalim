@@ -30,6 +30,8 @@
     או קשת, וכובע — מצחייה, פיראט או כתר 👑. בפעם הראשונה יש מתנת פתיחה!
   - 👤 שמות (רעיון של עומר): כותבים שם לפני שמשחקים, ולכל שם יש קופה, בגדים ושיאים משלו.
     ♾️ קוד צ׳יט: מי שכותב "עומר" מקבל כסף בלי סוף! (השמות האלה ב-RICH_NAMES)
+    👻 והוא יכול גם להדליק "רובוט רפאים" שעובר דרך הכול (עם שיא נפרד, וכפתור "לסיים").
+  - ❤️ שלוש נשמות לכולם (רעיון של עומר): נתקעים — מאבדים לב וממשיכים. נגמרו הלבבות — המשחק נגמר.
   - 🛸 סקייטבורד מעופף (רעיון של עומר): בחנות. בלי גלגלים, ומחזיקים את הקפיצה כדי לרחף לאט למטה.
     ועוד בחנות: שובל נצנצים או קשת ✨, צבעים סגול ושחור, ואוזני חתול 🐱
 
@@ -70,6 +72,20 @@
       vertical-align: middle;
     }
     #soundBtn:hover { background: #fff3e0; }
+    /* 🏁 כפתור "לסיים" של סיבוב רפאים */
+    #stopBtn {
+      font-family: inherit;
+      font-size: 16px;
+      font-weight: bold;
+      margin-right: 6px;
+      padding: 3px 10px;
+      border: 2px solid #5c6bc0;
+      border-radius: 10px;
+      background: #e8eaf6;
+      color: #283593;
+      cursor: pointer;
+      vertical-align: middle;
+    }
     /* מטבע קטן מצויר (כי לסמל 🪙 אין ציור ב-Windows 10) */
     /* מד הפרס: מטבעות אפורים שמתמלאים בזהב */
     .coin.empty {
@@ -303,6 +319,7 @@
     &nbsp;|&nbsp; <span id="prizeMeter" title="כל כמה מטבעות = מכשול נעלם!"></span>
     &nbsp;|&nbsp; 🏆 שיא <span id="bestLevel"></span>: <b id="best">0</b>
     <button id="soundBtn" tabindex="-1">🔊</button>
+    <button id="stopBtn" tabindex="-1" style="display:none">🏁 לסיים</button>
   </div>
 
   <div id="gameWrap">
@@ -346,6 +363,10 @@ const JUMP_POWER = 16;        // כמה חזק הרובוט קופץ (מספר �
 const GRAVITY = 0.8;          // כוח המשיכה: כמה חזק מושכים את הרובוט חזרה למטה
                               // (נסו 0.3 — כמו לקפוץ על הירח! 🌙)
 
+// --- נשמות ❤️ (רעיון של עומר) ---
+const LIVES = 3;              // כמה פעמים אפשר להיתקע לפני שהמשחק נגמר
+const HURT_SECONDS = 0.8;     // כמה זמן הרובוט מהבהב (ולא נפגע שוב) אחרי שאיבד נשמה
+
 // --- סלטה 🤸 (רעיון של עומר) ---
 const FLIP_SPEED = 15;        // בכמה מעלות הרובוט מסתובב בכל רגע (סיבוב שלם = 360 מעלות)
 const TRICK_BONUS = 3;        // כמה נקודות בונוס מקבלים על סלטה שלמה
@@ -380,7 +401,9 @@ const WHEEL_COLOR = "#ffeb3b";          // הגלגלים
 // price = כמה מטבעות זה עולה (0 = חינם). אפשר לשנות מחירים, שמות וצבעים!
 const WELCOME_GIFT = 50;      // מתנת פתיחה: כמה מטבעות מקבלים בפעם הראשונה שנכנסים לחנות
 // ♾️ קוד הצ׳יט של המפתח (רעיון של עומר): מי שכותב אחד מהשמות האלה מקבל כסף בלי סוף!
+// 👻 והם יכולים גם להדליק "רובוט רפאים" — עוברים דרך כל המכשולים ואף פעם לא נתקעים
 const RICH_NAMES = ["עומר", "Omer"];
+const GHOST_SEE_THROUGH = 0.6;   // 👻 כמה הרובוט-רפאים שקוף (1 = בכלל לא שקוף, 0.3 = כמעט בלתי נראה)
 const SHOP = {
   color: [   // 🎨 הצבע של הרובוט: body = הגוף והראש, dark = הידיים, הרגליים והקווים
     { id: "silver", name: "כסוף",   price: 0,   body: ROBOT_COLOR, dark: ROBOT_DARK_COLOR },
@@ -530,6 +553,8 @@ const robot = {
   gliding: false,   // 🛸 האם הוא מרחף עכשיו עם הסקייטבורד המעופף?
   crashed: false    // האם הוא נתקע במכשול?
 };
+let lives = LIVES;      // ❤️ כמה נשמות נשארו במשחק הזה
+let hurtTime = 0;       // 💔 טיימר: כמה זמן הרובוט עוד מהבהב אחרי שנפגע (0 = לא מהבהב)
 let jumpHeld = false;   // 🛸 האם מחזיקים עכשיו את כפתור הקפיצה (בשביל הריחוף)
 let trailTick = 0;      // ✨ סופר רגעים בשביל השובל
 
@@ -683,6 +708,8 @@ function startGame() {
   robot.flipAngle = 0;
   robot.crashed = false;
   robot.gliding = false;
+  lives = LIVES;               // ❤️ כל משחק מתחיל עם כל הנשמות
+  hurtTime = 0;
   jumpBuffer = 0;
   newRecord = false;
   overlay.classList.add("hidden");
@@ -744,7 +771,7 @@ function crash(reason) {
   if (state !== "playing") return;   // כבר נתקענו — לא נתקעים פעמיים
   state = "over";
   crashReason = reason || "";
-  robot.crashed = true;
+  robot.crashed = crashReason !== "stop";   // 🏁 מי שסיים סיבוב רפאים — לא "נתקע"
   if (crashReason !== "flip") robot.flipping = false;   // נחיתה על הראש — הרובוט נשאר הפוך 🙃
   robot.onRamp = null;
   overTime = performance.now();
@@ -844,6 +871,10 @@ function soundPower() {         // ⚡ כוח-על — צליל שעולה מה�
   beep("square", 300, 1200, 0.18, 0, 0.18);
   beep("triangle", 1200, 1800, 0.25, 0.15, 0.4);
 }
+function soundHurt() {          // 💔 איבדנו נשמה — "אאוץ'" קצר
+  beep("square", 420, 140, 0.25, 0, 0.3);
+  noise(0.12, 0.4);
+}
 function soundShield() {        // 🛡️ המגן נשבר — "פינג" של זכוכית
   beep("sine", 1900, 700, 0.35, 0, 0.5);
   noise(0.15, 0.4);
@@ -888,6 +919,10 @@ function saveSoundOn(on) {
 soundBtn.addEventListener("pointerdown", function (e) { e.preventDefault(); });   // שהכפתור לא "יתפוס" את הרווח
 soundBtn.addEventListener("click", toggleSound);
 showSoundButton();
+// 🏁 הכפתור "לסיים" — מופיע רק בסיבוב רפאים
+const stopBtn = document.getElementById("stopBtn");
+stopBtn.addEventListener("pointerdown", function (e) { e.preventDefault(); });
+stopBtn.addEventListener("click", stopGhostRun);
 
 // ------------------------------------------------------------
 //  🪟 החלונות שמעל המשחק
@@ -909,12 +944,14 @@ function showStartScreen() {
     '<div class="line">עזרו לרובוט לקפוץ מעל המכשולים ברחוב!</div>' +
     '<div class="line">' + JUMP_HOW + ' · ' + FLIP_HOW + '</div>' +
     '<div class="line">כל ' + prizeEvery() + ' מטבעות <span class="coin"></span> = מכשול נעלם 🎁 · רמפות 🛹 מעיפות גבוה</div>' +
-    '<div class="line gold">חדש! 🌙 לילה · 🛸 רחפנים · ⚡ כוחות-על · 🛒 חנות</div>' +
+    '<div class="line gold">חדש! ❤️ 3 נשמות · 🛸 סקייטבורד מעופף · 👤 שמות · 🛒 חנות</div>' +
     '<div class="line nameRow">👤 <b>השם שלי:</b> ' +
       '<input id="nameInput" maxlength="12" autocomplete="off" placeholder="כתבו כאן את השם" value="' + escapeHtml(player) + '">' +
       ' <button class="shopBtn" data-shop-open="1">🛒 חנות · 💰 ' + bankText() + '</button></div>' +
     '<div class="line small" id="nameHint"></div>' +
-    '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') + '</div>' +
+    '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') +
+      (isRich() ? ' &nbsp; <button class="shopBtn ghostBtn" data-ghost="1">👻 רפאים: ' +
+                  (ghostActive() ? 'פועל' : 'כבוי') + '</button>' : '') + '</div>' +
     '<div class="levels">' + buttons + '</div>';
   overlay.classList.remove("hidden");
 }
@@ -934,7 +971,8 @@ function ensurePlayer() {
 function showOverScreen() {
   card.classList.remove("shopMode");
   card.innerHTML =
-    (crashReason === "flip"  ? '<div class="big">🤕 אוי! נחתת באמצע סלטה!</div>' :
+    (crashReason === "stop"  ? '<div class="big">🏁 כל הכבוד! סיימת סיבוב רפאים 👻</div>' :
+     crashReason === "flip"  ? '<div class="big">🤕 אוי! נחתת באמצע סלטה!</div>' :
      crashReason === "drone" ? '<div class="big">🛸 אוי! התנגשת ברחפן!</div>' +
                                '<div class="small">טיפ: מתחת לרחפן לא קופצים — עוברים מתחתיו</div>' :
                                '<div class="big">💥 אוי! הרובוט נתקע!</div>') +
@@ -1083,7 +1121,10 @@ function updateScoreboard() {
   bestEl.textContent = best;
   bestLevelEl.textContent = level.ICON;   // ליד השיא: באיזו דרגה הוא
   // 👤 מי משחק עכשיו (ולמי שיש כסף בלי סוף — גם ∞)
-  playerTagEl.innerHTML = player ? "👤 <b>" + escapeHtml(player) + "</b>" + (isRich() ? " ♾️" : "") + " &nbsp;|&nbsp; " : "";
+  playerTagEl.innerHTML = player ? "👤 <b>" + escapeHtml(player) + "</b>" + (isRich() ? " ♾️" : "") +
+                                   (ghostActive() ? " 👻" : "") + " &nbsp;|&nbsp; " : "";
+  if (ghostActive()) bestLevelEl.textContent = level.ICON + "👻";           // שיא הרפאים
+  stopBtn.style.display = state === "playing" && ghostActive() ? "" : "none";   // 🏁 רק בסיבוב רפאים
   // מד הפרס: כמה מטבעות כבר יש לנו בדרך לפרס הבא (זהב = יש, אפור = עוד חסר)
   const filled = coinsCollected % prizeEvery();
   let meter = "🎁 ";
@@ -1183,6 +1224,10 @@ function usePlayer(name) {
 function isRich() {
   return RICH_NAMES.some(n => n.toLowerCase() === player.toLowerCase());
 }
+// 👻 האם הרובוט רפאים פועל עכשיו? (רק למי שיש לו כסף בלי סוף, ורק אם לא כיבה את המתג)
+function ghostActive() {
+  return isRich() && profile.ghost !== false;
+}
 // כמה כסף בקופה — כמספר, או ∞ למי שיש לו כסף בלי סוף
 function bankText() {
   return isRich() ? "∞" : String(bank);
@@ -1193,13 +1238,30 @@ function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
 
-// השיא של השחקן בדרגה הנוכחית
+// השיא של השחקן בדרגה הנוכחית. 👻 למשחקי רפאים יש שיא נפרד, כדי שהשיא האמיתי לא ייעלם
+function bestSlot() {
+  return ghostActive() ? levelKey + "Ghost" : levelKey;
+}
 function loadBest() {
-  return (profile.best && profile.best[levelKey]) || 0;
+  return (profile.best && profile.best[bestSlot()]) || 0;
 }
 function saveBest(value) {
-  profile.best[levelKey] = value;
+  profile.best[bestSlot()] = value;
   saveProfile();
+}
+
+// 👻 המתג במסך הפתיחה: מדליקים או מכבים את הרובוט רפאים
+function toggleGhost() {
+  profile.ghost = !ghostActive();
+  saveProfile();
+  best = loadBest();
+  showStartScreen();
+  updateScoreboard();
+}
+
+// 🏁 בסיבוב רפאים המשחק לא נגמר לבד — אז מסיימים אותו בכפתור (או ב-Escape)
+function stopGhostRun() {
+  if (state === "playing" && ghostActive()) crash("stop");
 }
 // 🛒 שמירה וקריאה של דברים מסובכים יותר (רשימות ואוספים) בזיכרון של הדפדפן
 function loadJSON(key, fallback) {
@@ -1260,6 +1322,7 @@ document.addEventListener("keydown", function (e) {
     if (!e.repeat) pressJump();       // לחיצה ארוכה = קפיצה אחת בלבד
   }
   if (e.code === "KeyM" && !e.repeat) toggleSound();   // M = השתקה / צלילים
+  if (e.code === "Escape") stopGhostRun();             // 🏁 Escape = מסיימים סיבוב רפאים
   // 1 / 2 / 3 = בחירת דרגה (רק כשלא באמצע משחק)
   const digits = { Digit1: "easy", Digit2: "medium", Digit3: "hard", Numpad1: "easy", Numpad2: "medium", Numpad3: "hard" };
   if (digits[e.code] && state !== "playing" && !e.repeat) {
@@ -1291,6 +1354,10 @@ overlay.addEventListener("click", function (e) {
     if (btn.dataset.cat) shopClick(btn.dataset.cat, btn.dataset.id);
     else if (btn.dataset.buy) shopBuy();
     else if (btn.dataset.shopClose) closeShop();
+    return;
+  }
+  if (btn && btn.dataset.ghost) {            // 👻 המתג של הרובוט רפאים
+    toggleGhost();
     return;
   }
   if (btn && btn.dataset.shopOpen) {
@@ -1336,6 +1403,7 @@ function update(dt) {
   // ⚡ הטיימרים של כוחות-העל סופרים אחורה. כשמגיעים לאפס — הכוח נגמר
   if (magnetTime > 0) magnetTime = Math.max(0, magnetTime - dt);
   if (doubleTime > 0) doubleTime = Math.max(0, doubleTime - dt);
+  if (hurtTime > 0) hurtTime = Math.max(0, hurtTime - dt);   // 💔 ההבהוב אחרי פגיעה נגמר לאט
 
   // 3. הסלטה: בכל רגע הרובוט מסתובב עוד קצת, עד שמגיע ל-360 מעלות (סיבוב שלם)
   if (robot.flipping) {
@@ -1411,9 +1479,14 @@ function update(dt) {
       updateScoreboard();
     }
     if (hitsRobot(o)) {
-      if (shieldOn) { shieldSaves(o); continue; }   // 🛡️ המגן מציל אותנו!
-      crash(o.type === "drone" ? "drone" : "");
-      return;
+      // 👻 רובוט רפאים — עובר דרך המכשול (ואומר "ווּש" פעם אחת)
+      if (ghostActive() && !o.ghosted) {
+        o.ghosted = true;
+        addPopup("👻", "ltr", "#90caf9", 0);
+      }
+      // 💔 נפגענו: קודם המגן, אחר כך נשמה. נגמרו הנשמות — המשחק נגמר
+      if (takeHit(o, o.type === "drone" ? "drone" : "")) return;
+      continue;
     }
   }
   obstacles = obstacles.filter(o => o.x + o.w > -20);   // מכשול שיצא מהמסך — נמחק
@@ -1475,11 +1548,40 @@ function update(dt) {
 // בדרגה קשה — נתקעים! 😱 (FLIP_CRASH בטבלת הדרגות)
 function missedFlip() {
   if (!robot.flipping) return;
-  if (level.FLIP_CRASH && !shieldOn) { crash("flip"); return; }
+  if (level.FLIP_CRASH && !ghostActive() && hurtTime <= 0) {
+    // 😱 בדרגה קשה: נחיתה על הראש = נפגעים (המגן או נשמה מצילים, אחרת המשחק נגמר)
+    if (shieldOn || lives > 1) { robot.flipping = false; robot.flipAngle = 0; }
+    takeHit(null, "flip");
+    return;
+  }
   robot.flipping = false;
   robot.flipAngle = 0;
-  if (level.FLIP_CRASH) shieldSaves(null);           // 🛡️ בדרגה קשה — המגן הציל אותנו מנחיתה על הראש
-  else addPopup("כמעט!", "rtl", "#546e7a", 0);
+  addPopup("כמעט!", "rtl", "#546e7a", 0);
+}
+
+// 💔 הרובוט נפגע (o = המכשול שפגענו בו, או null בנחיתה על הראש).
+// מחזיר true אם המשחק נגמר
+function takeHit(o, reason) {
+  if (ghostActive() || hurtTime > 0) return false;   // 👻 רפאים, או שעוד מהבהבים — לא נפגעים
+  if (shieldOn) { shieldSaves(o); return false; }    // 🛡️ המגן נשבר במקום הנשמה
+  lives--;
+  if (lives <= 0) { crash(reason); return true; }    // נגמרו הנשמות — המשחק נגמר
+  // איבדנו נשמה — אבל ממשיכים לנסוע!
+  hurtTime = HURT_SECONDS * 60;
+  if (o) {
+    obstacles = obstacles.filter(other => other !== o);   // המכשול נשבר
+    const box = obstacleBox(o);
+    burst(o.x + o.w / 2, (box.top + box.bottom) / 2, "#ff7043", 18);
+  }
+  robot.flipping = false;
+  robot.flipAngle = 0;
+  addPopup("💔 נשארו " + lives, "rtl", "#e53935", 30);
+  canvas.classList.remove("shake");
+  void canvas.offsetWidth;
+  canvas.classList.add("shake");
+  soundHurt();
+  updateScoreboard();
+  return false;
 }
 
 // ------------------------------------------------------------
@@ -1822,6 +1924,7 @@ function draw(now) {
   drawSparkles();
   drawPopups();
   drawPowerHud(now);
+  drawLives(now);
 
   // הרובוט עף כל כך גבוה שהוא יצא מהמסך? חץ קטן למעלה מראה איפה הוא
   if (robot.y < 40) {
@@ -2217,6 +2320,39 @@ function drawShieldBubble(now) {
   ctx.beginPath(); ctx.ellipse(cx, cy, 36, 54, 0, -2.4, -1.6); ctx.stroke();
 }
 
+// ❤️ הלבבות בראש המסך: לב מלא = נשמה שנשארה, לב ריק = נשמה שהלכה. לרובוט רפאים — 👻
+function drawLives(now) {
+  if (state === "start") return;
+  if (ghostActive()) {
+    ctx.font = "26px 'Segoe UI Emoji', 'Segoe UI', Arial";
+    ctx.textAlign = "center";
+    ctx.direction = "ltr";
+    ctx.fillText("👻", W / 2, 36);
+    ctx.direction = "inherit";
+    return;
+  }
+  for (let i = 0; i < LIVES; i++) {
+    const cx = W / 2 + (i - (LIVES - 1) / 2) * 30, cy = 24;
+    const full = i < lives;
+    // הלב האחרון שנשאר פועם כשנשארה רק נשמה אחת
+    const s = full && lives === 1 ? 1 + 0.12 * Math.sin(now / 120) : 1;
+    heartPath(cx, cy, 11 * s);
+    ctx.fillStyle = full ? "#e53935" : "rgba(255, 255, 255, 0.35)";
+    ctx.fill();
+    ctx.strokeStyle = full ? "#ffcdd2" : "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+}
+// צורה של לב (r = כמה הוא גדול)
+function heartPath(cx, cy, r) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + r * 0.9);
+  ctx.bezierCurveTo(cx - r * 1.4, cy, cx - r * 0.9, cy - r * 1.1, cx, cy - r * 0.35);
+  ctx.bezierCurveTo(cx + r * 0.9, cy - r * 1.1, cx + r * 1.4, cy, cx, cy + r * 0.9);
+  ctx.closePath();
+}
+
 // ⏱️ הלוח בפינה: אילו כוחות פועלים עכשיו, ופס הטיימר שמתקצר עד שהכוח נגמר
 function drawPowerHud(now) {
   const items = [];
@@ -2438,6 +2574,10 @@ function drawRobot(now) {
   const x = robot.x, y = robot.y;
   const look = currentLook();          // 🛒 מה הרובוט לובש (מהחנות)
   const BODY = look.body, DARK = look.dark;
+  // 👻 רובוט רפאים: שקוף וזוהר. 💔 אחרי פגיעה: מהבהב
+  let alpha = 1;
+  if (!lookOverride && ghostActive()) alpha = GHOST_SEE_THROUGH;
+  if (!lookOverride && hurtTime > 0 && Math.floor(now / 80) % 2 === 0) alpha = 0.25;
 
   // צל על המדרכה — קטן יותר כשהרובוט גבוה באוויר
   const height = GROUND_Y - y;
@@ -2445,6 +2585,13 @@ function drawRobot(now) {
   drawShadow(x, 72 * shadow, 0.25 * shadow);
 
   ctx.save();
+  ctx.globalAlpha = alpha;
+  const ghostGlow = ghostActive() && !lookOverride ? 14 : 0;   // הילה לבנה-כחלחלה של רוח רפאים
+  const GHOST_GLOW_COLOR = "rgba(200, 230, 255, 0.9)";
+  if (ghostGlow) {
+    ctx.shadowColor = GHOST_GLOW_COLOR;
+    ctx.shadowBlur = ghostGlow;
+  }
   // באוויר הסקייטבורד נוטה: האף למעלה כשעולים, למטה כשיורדים
   let tilt = robot.onGround ? 0 : Math.max(-0.35, Math.min(0.35, robot.vy * 0.025));
   if (robot.onRamp) tilt = -Math.atan2(robot.onRamp.h, robot.onRamp.w);   // על הרמפה — נוטה כמו המדרון
@@ -2602,7 +2749,8 @@ function drawRobot(now) {
     ctx.shadowBlur = 6;
     ctx.beginPath(); ctx.arc(x - 5, y - 79.5, 3, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(x + 6, y - 79.5, 3, 0, Math.PI * 2); ctx.fill();
-    ctx.shadowBlur = 0;
+    ctx.shadowColor = GHOST_GLOW_COLOR;           // חוזרים להילה של הרפאים (או בלי הילה)
+    ctx.shadowBlur = ghostGlow;
   }
   // חיוך קטן (או פה עצוב כשנתקעים)
   ctx.strokeStyle = "#455a64";
