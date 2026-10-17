@@ -19,7 +19,9 @@
   - 🔊 צלילים (רעיון של עומר): בוינג בקפיצה, דינג-דינג במטבע, בום כשנתקעים.
     הכפתור 🔊 ליד הניקוד (או המקש M) משתיק ומחזיר את הצלילים.
   - 🎁 פרס (רעיון של עומר): כל 3 מטבעות — המכשול הכי קרוב נעלם בפוף!
-  - 🛹 רמפות: נבנו ואז כובו, כי עומר החליט שהוא לא רוצה אותן. כדי להחזיר: RAMP_CHANCE = 0.25
+  - 🛹 רמפות (רעיון של עומר): נוסעים עליהן ועפים גבוה. למעלה מחכה קשת מטבעות סודית!
+  - 🎚️ שלוש דרגות קושי (רעיון של סבא פיני): קל 🟢, בינוני 🟡, קשה 🔴. לכל דרגה שיא משלה.
+    בדרגה קשה: נחיתה באמצע סלטה = נתקעים! (במקלדת: 1 / 2 / 3 בוחרים דרגה במסך הפתיחה)
 
   --- אזור ההגדרות (באותיות גדולות) נמצא בתחילת הסקריפט למטה ---
   שנו מספר או צבע, שמרו (Ctrl+S), ולחצו F5 בדפדפן כדי לראות מה קרה.
@@ -135,6 +137,43 @@
       cursor: pointer;
     }
     .bigBtn:hover { background: #e65100; }
+    /* כפתורי הדרגות במסך הפתיחה 🟢🟡🔴 */
+    .levels {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .levelBtn {
+      flex: 1 1 130px;
+      max-width: 180px;
+      padding: 8px 10px;
+      border: 3px solid transparent;
+      border-radius: 12px;
+      cursor: pointer;
+      font-family: inherit;
+      color: #263238;
+    }
+    .levelBtn[data-level="easy"]   { background: #e8f5e9; }
+    .levelBtn[data-level="medium"] { background: #fff8e1; }
+    .levelBtn[data-level="hard"]   { background: #ffebee; }
+    .levelBtn:hover { filter: brightness(0.95); }
+    .levelBtn.chosen { border-color: #ff6d00; }
+    .levelBtn b { display: block; font-size: 20px; }
+    .levelBtn small { display: block; font-size: 12px; opacity: .8; margin-top: 2px; }
+    /* הכפתור "דרגה אחרת" במסך הסיום */
+    .menuBtn {
+      margin-top: 10px;
+      font-size: 16px;
+      padding: 10px 16px;
+      border: 2px solid #ff6d00;
+      border-radius: 12px;
+      background: white;
+      color: #e65100;
+      cursor: pointer;
+      font-family: inherit;
+    }
 
     /* במסך קטן (טלפון) — הכול קצת יותר קטן */
     @media (max-width: 600px) {
@@ -165,7 +204,7 @@
   <div id="scoreboard">
     נקודות: <b id="score">0</b> &nbsp;|&nbsp; <span class="coin"></span> מטבעות: <b id="coins">0</b>
     &nbsp;|&nbsp; <span id="prizeMeter" title="כל כמה מטבעות = מכשול נעלם!"></span>
-    &nbsp;|&nbsp; 🏆 שיא: <b id="best">0</b>
+    &nbsp;|&nbsp; 🏆 שיא <span id="bestLevel"></span>: <b id="best">0</b>
     <button id="soundBtn" tabindex="-1">🔊</button>
   </div>
 
@@ -183,10 +222,22 @@
 // --- שם המשחק ---
 const GAME_NAME = "עומר על גלגלים";
 
-// --- מהירות ---
-const START_SPEED = 6;        // כמה מהר הרחוב זז בהתחלה
-const SPEED_UP = 0.15;        // בכמה המהירות עולה בכל פעם שעוברים מכשול
-const MAX_SPEED = 16;         // הכי מהר שהרחוב יכול לזוז
+// --- דרגות קושי 🟢🟡🔴 (רעיון של סבא פיני) ---
+// לכל דרגה יש הגדרות משלה:
+//   START_SPEED  = כמה מהר הרחוב זז בהתחלה
+//   SPEED_UP     = בכמה המהירות עולה בכל פעם שעוברים מכשול
+//   MAX_SPEED    = הכי מהר שהרחוב יכול לזוז
+//   GAP_MIN/MAX  = הכי מעט / הכי הרבה זמן בין שני מכשולים (קטן = צפוף)
+//   RAMP_CHANCE  = הסיכוי שבמקום מכשול תופיע רמפה 🛹 (0 = אף פעם, 1 = רק רמפות)
+//   FLIP_CRASH   = true: נחיתה באמצע סלטה = נתקעים! 😱  ·  false: רק "כמעט!"
+const LEVELS = {
+  easy:   { NAME: "קל",     ICON: "🟢", ABOUT: "לאט ובנחת, הרבה מטבעות",
+            START_SPEED: 5, SPEED_UP: 0.1,  MAX_SPEED: 12, GAP_MIN: 60, GAP_MAX: 130, RAMP_CHANCE: 0.3,  FLIP_CRASH: false },
+  medium: { NAME: "בינוני", ICON: "🟡", ABOUT: "כמו שהיה עד עכשיו",
+            START_SPEED: 6, SPEED_UP: 0.15, MAX_SPEED: 16, GAP_MIN: 50, GAP_MAX: 110, RAMP_CHANCE: 0.25, FLIP_CRASH: false },
+  hard:   { NAME: "קשה",    ICON: "🔴", ABOUT: "מהיר וצפוף. נחיתה באמצע סלטה = נתקעים!",
+            START_SPEED: 8, SPEED_UP: 0.25, MAX_SPEED: 20, GAP_MIN: 45, GAP_MAX: 100, RAMP_CHANCE: 0.2,  FLIP_CRASH: true }
+};
 
 // --- קפיצה ---
 const JUMP_POWER = 16;        // כמה חזק הרובוט קופץ (מספר גדול = קפיצה גבוהה יותר)
@@ -203,22 +254,16 @@ const COINS_IN_A_ROW = 3;     // כמה מטבעות יש בכל קשת באוו
 const COIN_CHANCE = 1;        // הסיכוי שתופיע קשת מטבעות כשיש מקום (1 = תמיד, 0.5 = חצי מהפעמים)
 const COIN_COLOR = "#ffd600"; // הצבע של המטבע
 
-// --- צלילים 🔊 (רעיון של עומר) ---
 // --- פרס 🎁 (רעיון של עומר) ---
 const COINS_FOR_PRIZE = 3;    // כל כמה מטבעות מקבלים פרס: המכשול הכי קרוב נעלם בפוף!
 
-// --- רמפות 🛹 (כבויות — עומר החליט בלי רמפות, 17.10.2026) ---
-const RAMP_CHANCE = 0;        // הסיכוי שבמקום מכשול תופיע רמפה (0 = כבוי, 0.25 = רבע מהפעמים)
+// --- רמפות 🛹 (רעיון של עומר; כמה פעמים הן מופיעות — בטבלת הדרגות למעלה) ---
 const RAMP_POWER = 18;        // כמה חזק הרמפה מעיפה את הרובוט (הקפיצה הרגילה היא 16)
 const RAMP_COLOR = "#d7a36a"; // הצבע של הרמפה (עץ)
 
-// --- צלילים 🔊 (המשך) ---
+// --- צלילים 🔊 (רעיון של עומר) ---
 const VOLUME = 0.5;           // כמה חזק (0 = שקט, 1 = הכי חזק)
 const JUMP_SOUND_HIGH = 620;  // כמה גבוה ה"בוינג" של הקפיצה מגיע (מספר גדול = צליל גבוה יותר)
-
-// --- מכשולים ---
-const OBSTACLE_GAP_MIN = 50;  // הכי מעט זמן בין שני מכשולים (מספר קטן = מכשולים צפופים)
-const OBSTACLE_GAP_MAX = 110; // הכי הרבה זמן בין שני מכשולים
 
 // --- הצבעים של הרובוט ---
 const ROBOT_COLOR = "#b0bec5";          // הגוף והראש (כסוף)
@@ -258,6 +303,7 @@ const scoreEl = document.getElementById("score");
 const coinsEl = document.getElementById("coins");
 const prizeMeterEl = document.getElementById("prizeMeter");
 const bestEl = document.getElementById("best");
+const bestLevelEl = document.getElementById("bestLevel");
 
 // שם המשחק מופיע בכותרת ובלשונית של הדפדפן
 document.getElementById("title").textContent = GAME_NAME + " 🛹";
@@ -271,11 +317,14 @@ document.getElementById("help").textContent = JUMP_HOW + " · " + FLIP_HOW;
 
 // --- המצב של המשחק ---
 let state = "start";        // "start" = מסך פתיחה · "playing" = משחקים · "over" = נגמר
+let levelKey = loadLevel(); // איזו דרגה בחרנו: "easy" / "medium" / "hard"
+let level = LEVELS[levelKey];   // ההגדרות של הדרגה הזאת (מהטבלה למעלה)
 let score = 0;              // כמה נקודות צברנו
 let tricks = 0;             // כמה סלטות שלמות עשינו במשחק הזה
-let best = loadBest();      // השיא — נשמר בדפדפן גם אחרי שסוגרים אותו
+let best = loadBest();      // השיא של הדרגה הזאת — נשמר בדפדפן גם אחרי שסוגרים אותו
 let newRecord = false;      // האם הפעם שברנו שיא?
-let speed = START_SPEED;    // המהירות של הרחוב עכשיו
+let crashReason = "";       // למה נתקענו: "" = מכשול, "flip" = נחיתה באמצע סלטה
+let speed = level.START_SPEED;  // המהירות של הרחוב עכשיו
 let obstacles = [];         // כל המכשולים שנמצאים עכשיו ברחוב
 let coins = [];             // כל המטבעות שמרחפים עכשיו באוויר
 let coinsCollected = 0;     // כמה מטבעות אספנו במשחק הזה
@@ -393,7 +442,8 @@ function startGame() {
   state = "playing";
   score = 0;
   tricks = 0;
-  speed = START_SPEED;
+  speed = level.START_SPEED;
+  crashReason = "";
   obstacles = [];
   coins = [];
   coinsCollected = 0;
@@ -414,6 +464,16 @@ function startGame() {
   newRecord = false;
   overlay.classList.add("hidden");
   if (document.activeElement) document.activeElement.blur();
+  updateScoreboard();
+}
+
+// 🎚️ בחירת דרגת קושי: מחליפים את ההגדרות, ואת השיא שמוצג (לכל דרגה שיא משלה)
+function chooseLevel(key) {
+  if (!LEVELS[key]) return;
+  levelKey = key;
+  level = LEVELS[key];
+  saveLevel(key);
+  best = loadBest();
   updateScoreboard();
 }
 
@@ -449,10 +509,13 @@ function almostLanding() {
   return robot.vy > 0 && GROUND_Y - robot.y < robot.vy * 8;
 }
 
-function crash() {
+// נתקענו! reason אומר למה: "" = במכשול, "flip" = נחתנו באמצע סלטה
+function crash(reason) {
+  if (state !== "playing") return;   // כבר נתקענו — לא נתקעים פעמיים
   state = "over";
+  crashReason = reason || "";
   robot.crashed = true;
-  robot.flipping = false;
+  if (crashReason !== "flip") robot.flipping = false;   // נחיתה על הראש — הרובוט נשאר הפוך 🙃
   robot.onRamp = null;
   overTime = performance.now();
   soundCrash();             // בום! 💥
@@ -575,27 +638,40 @@ showSoundButton();
 //  🪟 החלונות שמעל המשחק
 // ------------------------------------------------------------
 function showStartScreen() {
+  state = "start";
+  robot.crashed = false;
+  // שלושה כפתורים — אחד לכל דרגה. הדרגה שבחרנו בפעם הקודמת מסומנת
+  let buttons = "";
+  for (const key of ["easy", "medium", "hard"]) {
+    const L = LEVELS[key];
+    buttons +=
+      '<button class="levelBtn' + (key === levelKey ? ' chosen' : '') + '" data-level="' + key + '">' +
+      '<b>' + L.ICON + ' ' + L.NAME + '</b><small>' + L.ABOUT + '</small></button>';
+  }
   card.innerHTML =
     '<div class="big">' + GAME_NAME + ' 🤖🛹</div>' +
     '<div class="line">עזרו לרובוט לקפוץ מעל המכשולים ברחוב!</div>' +
-    '<div class="line">' + JUMP_HOW + '</div>' +
-    '<div class="line">' + FLIP_HOW + ' ובונוס!</div>' +
-    '<div class="line">קופצים לאסוף מטבעות <span class="coin"></span> · כל ' + prizeEvery() + ' = פרס 🎁 מכשול נעלם!</div>' +
-    (RAMP_CHANCE > 0 ? '<div class="line">רמפות 🛹 מעיפות את הרובוט גבוה!</div>' : '') +
-    '<button class="bigBtn">יאללה, נוסעים! 🛹</button>';
+    '<div class="line">' + JUMP_HOW + ' · ' + FLIP_HOW + '</div>' +
+    '<div class="line">כל ' + prizeEvery() + ' מטבעות <span class="coin"></span> = מכשול נעלם 🎁 · רמפות 🛹 מעיפות גבוה</div>' +
+    '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') + '</div>' +
+    '<div class="levels">' + buttons + '</div>';
   overlay.classList.remove("hidden");
 }
 
 function showOverScreen() {
   card.innerHTML =
-    '<div class="big">💥 אוי! הרובוט נתקע!</div>' +
+    (crashReason === "flip"
+      ? '<div class="big">🤕 אוי! נחתת באמצע סלטה!</div>'
+      : '<div class="big">💥 אוי! הרובוט נתקע!</div>') +
+    '<div class="line">דרגה: ' + level.ICON + ' ' + level.NAME + '</div>' +
     '<div class="line">צברת <span class="gold">' + score + '</span> נקודות</div>' +
     (tricks > 0 ? '<div class="line">עשית <span class="gold">' + tricks + '</span> סלטות 🤸</div>' : '') +
     (coinsCollected > 0 ? '<div class="line">אספת <span class="gold">' + coinsCollected + '</span> מטבעות <span class="coin"></span></div>' : '') +
     (poofs > 0 ? '<div class="line">העלמת <span class="gold">' + poofs + '</span> מכשולים 🎁</div>' : '') +
     (ramps > 0 ? '<div class="line">עפת מ-<span class="gold">' + ramps + '</span> רמפות 🛹</div>' : '') +
     (newRecord ? '<div class="line gold">🏆 שיא חדש! כל הכבוד!</div>' : '') +
-    '<button class="bigBtn">עוד פעם! 🔄</button>' +
+    '<button class="bigBtn">עוד פעם! 🔄</button> ' +
+    '<button class="menuBtn" data-menu="1">🎚️ דרגה אחרת</button>' +
     (TOUCH ? '' : '<div class="small">(או לחצו רווח)</div>');
   overlay.classList.remove("hidden");
 }
@@ -604,6 +680,7 @@ function updateScoreboard() {
   scoreEl.textContent = score;
   coinsEl.textContent = coinsCollected;
   bestEl.textContent = best;
+  bestLevelEl.textContent = level.ICON;   // ליד השיא: באיזו דרגה הוא
   // מד הפרס: כמה מטבעות כבר יש לנו בדרך לפרס הבא (זהב = יש, אפור = עוד חסר)
   const filled = coinsCollected % prizeEvery();
   let meter = "🎁 ";
@@ -618,13 +695,25 @@ function prizeEvery() {
   return Math.max(1, Math.round(COINS_FOR_PRIZE));
 }
 
-// השיא נשמר בזיכרון של הדפדפן (ואם הדפדפן לא מרשה — פשוט לא שומרים)
+// השיא נשמר בזיכרון של הדפדפן (ואם הדפדפן לא מרשה — פשוט לא שומרים).
+// לכל דרגה יש שיא משלה. השיא הישן (מלפני שהיו דרגות) הוא השיא של "בינוני"
+function bestKey() {
+  return levelKey === "medium" ? "omer-skate-best" : "omer-skate-best-" + levelKey;
+}
 function loadBest() {
-  try { return parseInt(localStorage.getItem("omer-skate-best")) || 0; }
+  try { return parseInt(localStorage.getItem(bestKey())) || 0; }
   catch (e) { return 0; }
 }
 function saveBest(value) {
-  try { localStorage.setItem("omer-skate-best", value); } catch (e) {}
+  try { localStorage.setItem(bestKey(), value); } catch (e) {}
+}
+// הדפדפן זוכר איזו דרגה בחרנו בפעם האחרונה
+function loadLevel() {
+  try { const k = localStorage.getItem("omer-skate-level"); return LEVELS[k] ? k : "medium"; }
+  catch (e) { return "medium"; }
+}
+function saveLevel(key) {
+  try { localStorage.setItem("omer-skate-level", key); } catch (e) {}
 }
 
 // ------------------------------------------------------------
@@ -636,12 +725,33 @@ document.addEventListener("keydown", function (e) {
     if (!e.repeat) pressJump();       // לחיצה ארוכה = קפיצה אחת בלבד
   }
   if (e.code === "KeyM" && !e.repeat) toggleSound();   // M = השתקה / צלילים
+  // 1 / 2 / 3 = בחירת דרגה (רק כשלא באמצע משחק)
+  const digits = { Digit1: "easy", Digit2: "medium", Digit3: "hard", Numpad1: "easy", Numpad2: "medium", Numpad3: "hard" };
+  if (digits[e.code] && state !== "playing" && !e.repeat) {
+    startAudio();
+    chooseLevel(digits[e.code]);
+    startGame();
+  }
 });
 canvas.addEventListener("pointerdown", function (e) {
   e.preventDefault();
   pressJump();
 });
-overlay.addEventListener("click", pressJump);
+// לחיצה על החלון שמעל המשחק: כפתור דרגה, כפתור "דרגה אחרת", או סתם לחיצה (= עוד פעם)
+overlay.addEventListener("click", function (e) {
+  const btn = e.target.closest("button");
+  if (btn && btn.dataset.level) {
+    startAudio();
+    chooseLevel(btn.dataset.level);
+    startGame();
+    return;
+  }
+  if (btn && btn.dataset.menu) {
+    showStartScreen();
+    return;
+  }
+  pressJump();
+});
 
 // ------------------------------------------------------------
 //  🔄 העדכון: מה זז בכל רגע במשחק
@@ -683,6 +793,7 @@ function update(dt) {
       robot.vy = 0;
       robot.onGround = true;
       missedFlip();
+      if (state !== "playing") return;   // נחתנו על הראש בדרגה קשה — המשחק נגמר
       if (jumpBuffer > 0) doJump();
     }
   }
@@ -710,11 +821,15 @@ function update(dt) {
   // 6. המכשולים זזים, ובודקים: עברנו? נתקענו? (ורמפה — עולים עליה!)
   for (const o of obstacles) {
     o.x -= speed * dt;
-    if (o.type === "ramp") { rideRamp(o); continue; }   // רמפה לא מסוכנת — נוסעים עליה
+    if (o.type === "ramp") {                 // רמפה לא מסוכנת — נוסעים עליה
+      rideRamp(o);
+      if (state !== "playing") return;       // (חוץ מנחיתה באמצע סלטה בדרגה קשה)
+      continue;
+    }
     if (!o.passed && o.x + o.w < robot.x - 22) {
       o.passed = true;
       score++;
-      speed = Math.min(MAX_SPEED, speed + SPEED_UP);
+      speed = Math.min(level.MAX_SPEED, speed + level.SPEED_UP);
       addPopup("+1", "ltr", "#e65100", 0);
       updateScoreboard();
     }
@@ -755,9 +870,11 @@ function update(dt) {
   sparkles = sparkles.filter(s => s.life > 0);
 }
 
-// נחת באמצע הסלטה? לא נורא — רק בלי בונוס
+// נחת באמצע הסלטה? בדרגות קל ובינוני — לא נורא, רק בלי בונוס.
+// בדרגה קשה — נתקעים! 😱 (FLIP_CRASH בטבלת הדרגות)
 function missedFlip() {
   if (!robot.flipping) return;
+  if (level.FLIP_CRASH) { crash("flip"); return; }
   robot.flipping = false;
   robot.flipAngle = 0;
   addPopup("כמעט!", "rtl", "#546e7a", 0);
@@ -797,7 +914,10 @@ function rideRamp(o) {
   if (h < 0) return;
   const landing = !robot.onGround && robot.vy >= 0 && robot.y >= GROUND_Y - h;
   if (robot.onGround || landing) {
-    if (landing) missedFlip();
+    if (landing) {
+      missedFlip();
+      if (state !== "playing") return;
+    }
     robot.onRamp = o;
     robot.onGround = true;
     robot.vy = 0;
@@ -878,13 +998,13 @@ function moveLayer(list, factor, maker, gapMin, gapMax, dt) {
 }
 
 function spawnObstacle() {
-  if (Math.random() < RAMP_CHANCE) { spawnRamp(); return; }   // 🛹 הפעם — רמפה!
+  if (Math.random() < level.RAMP_CHANCE) { spawnRamp(); return; }   // 🛹 הפעם — רמפה!
   const type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
   obstacles.push({ type: type.name, w: type.w, h: type.h, x: W + 10, passed: false });
   // כמה זמן הרובוט באוויר בקפיצה אחת — כדי שתמיד יהיה מספיק זמן לנחות ולקפוץ שוב
   const airTime = 2 * JUMP_POWER / GRAVITY;
-  const minGap = Math.max(OBSTACLE_GAP_MIN, airTime + 10);
-  const maxGap = Math.max(OBSTACLE_GAP_MAX, minGap + 20);
+  const minGap = Math.max(level.GAP_MIN, airTime + 10);
+  const maxGap = Math.max(level.GAP_MAX, minGap + 20);
   const gap = rand(minGap, maxGap);
   nextObstacleIn = speed * gap + type.w;
 
