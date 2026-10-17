@@ -1,0 +1,1436 @@
+<!DOCTYPE html>
+<!--
+  ============================================================
+   משחק: עומר על גלגלים 🛹🤖
+   המשחק השני של עומר וסבא פיני, נבנה עם Claude Code
+   הגרסה הראשונה: 17.10.2026
+  ============================================================
+
+  איך משחקים?
+  - הרובוט נוסע לבד על הסקייטבורד ברחוב של העיר.
+  - לוחצים על רווח (או חץ למעלה, קליק בעכבר, נגיעה במסך) כדי לקפוץ.
+  - קופצים מעל המכשולים: קונוסים, פחי זבל וברזי כיבוי אש.
+  - כל מכשול שעברתם = נקודה אחת. נתקעתם במכשול? המשחק נגמר.
+  - ככל שמתקדמים, הרחוב זז יותר ויותר מהר!
+  - 🤸 סלטה (רעיון של עומר): לוחצים שוב כשהרובוט באוויר, והוא מסתובב סיבוב שלם.
+    סלטה שנגמרת לפני הנחיתה = בונוס נקודות!
+  - 🪙 מטבעות (רעיון של עומר): מרחפים באוויר בין המכשולים. קופצים כדי לאסוף אותם.
+  - 🧊 מראה תלת-ממדי (רעיון של עומר): לכל דבר יש צד מואר, צד בצל וצל על המדרכה.
+  - 🔊 צלילים (רעיון של עומר): בוינג בקפיצה, דינג-דינג במטבע, בום כשנתקעים.
+    הכפתור 🔊 ליד הניקוד (או המקש M) משתיק ומחזיר את הצלילים.
+  - 🎁 פרס (רעיון של עומר): כל 3 מטבעות — המכשול הכי קרוב נעלם בפוף!
+  - 🛹 רמפות: נבנו ואז כובו, כי עומר החליט שהוא לא רוצה אותן. כדי להחזיר: RAMP_CHANCE = 0.25
+
+  --- אזור ההגדרות (באותיות גדולות) נמצא בתחילת הסקריפט למטה ---
+  שנו מספר או צבע, שמרו (Ctrl+S), ולחצו F5 בדפדפן כדי לראות מה קרה.
+-->
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>עומר על גלגלים 🛹</title>
+  <style>
+    /* ====== עיצוב הדף ====== */
+    body {
+      margin: 0;
+      padding-top: 12px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: linear-gradient(#e3f2fd, #bbdefb);
+      color: #263238;
+      text-align: center;
+      overflow-x: hidden;
+      user-select: none;
+    }
+    h1 { margin: 0 0 2px; font-size: 28px; }
+    #help { font-size: 15px; opacity: .75; margin: 0 0 6px; }
+    #scoreboard { font-size: 21px; margin: 6px; }
+    /* כפתור הצלילים 🔊 */
+    #soundBtn {
+      font-size: 20px;
+      margin-right: 10px;
+      padding: 2px 8px;
+      border: 2px solid #ff6d00;
+      border-radius: 10px;
+      background: white;
+      cursor: pointer;
+      vertical-align: middle;
+    }
+    #soundBtn:hover { background: #fff3e0; }
+    /* מטבע קטן מצויר (כי לסמל 🪙 אין ציור ב-Windows 10) */
+    /* מד הפרס: מטבעות אפורים שמתמלאים בזהב */
+    .coin.empty {
+      background: #eceff1;
+      border-color: #b0bec5;
+    }
+    #prizeMeter .coin { margin: 0 1px; }
+    .coin {
+      display: inline-block;
+      width: 0.8em;
+      height: 0.8em;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #fff59d, #ffd600 45%, #ff8f00);
+      border: 2px solid #ff8f00;
+      vertical-align: -0.1em;
+    }
+
+    /* המסגרת שמחזיקה את המשחק ואת חלון הפתיחה שמעליו */
+    #gameWrap {
+      position: relative;
+      display: inline-block;
+      max-width: 96vw;
+    }
+    canvas {
+      display: block;
+      width: 800px;
+      max-width: 96vw;
+      height: auto;
+      border: 4px solid #ff6d00;
+      border-radius: 14px;
+      touch-action: none;
+      cursor: pointer;
+    }
+
+    /* רעידה קטנה של המסך כשהרובוט נתקע 💥 */
+    @keyframes shake {
+      0%, 100% { transform: translate(0, 0); }
+      20% { transform: translate(-7px, 3px); }
+      40% { transform: translate(6px, -5px); }
+      60% { transform: translate(-5px, -3px); }
+      80% { transform: translate(4px, 4px); }
+    }
+    canvas.shake { animation: shake 0.35s ease-in-out; }
+
+    /* החלון שמופיע מעל המשחק: בהתחלה, וכשנתקעים */
+    #overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    #overlay.hidden { display: none; }
+    .card {
+      background: rgba(255, 255, 255, .93);
+      padding: 20px 34px;
+      border-radius: 18px;
+      border: 3px solid #ff6d00;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+    }
+    .card .big   { font-size: 30px; font-weight: bold; margin-bottom: 8px; }
+    .card .line  { font-size: 19px; margin: 6px 0; }
+    .card .gold  { color: #e65100; font-weight: bold; }
+    .card .small { font-size: 14px; opacity: .7; margin-top: 8px; }
+    .bigBtn {
+      margin-top: 10px;
+      font-size: 22px;
+      font-weight: bold;
+      padding: 12px 28px;
+      border: none;
+      border-radius: 12px;
+      background: #ff6d00;
+      color: white;
+      cursor: pointer;
+    }
+    .bigBtn:hover { background: #e65100; }
+
+    /* במסך קטן (טלפון) — הכול קצת יותר קטן */
+    @media (max-width: 600px) {
+      h1 { font-size: 22px; }
+      #help { font-size: 12px; }
+      #scoreboard { font-size: 15px; }
+      #soundBtn { font-size: 16px; }
+      /* בטלפון המשחק קטן, אז החלון מכסה את כל המסך במקום רק את המשחק */
+      #overlay {
+        position: fixed;
+        background: rgba(0, 0, 0, .35);
+        padding: 16px;
+        z-index: 10;
+      }
+      .card { padding: 14px 16px; }
+      .card .big  { font-size: 22px; }
+      .card .line { font-size: 15px; }
+      .bigBtn { font-size: 18px; padding: 10px 20px; }
+    }
+    html { overflow-x: hidden; }
+    body { touch-action: manipulation; }   /* בטלפון: נגיעה כפולה לא מגדילה את הדף */
+  </style>
+</head>
+<body>
+
+  <h1 id="title">עומר על גלגלים 🛹</h1>
+  <p id="help">רווח / חץ למעלה / קליק = קפיצה · עוד לחיצה באוויר = סלטה 🤸</p>
+  <div id="scoreboard">
+    נקודות: <b id="score">0</b> &nbsp;|&nbsp; <span class="coin"></span> מטבעות: <b id="coins">0</b>
+    &nbsp;|&nbsp; <span id="prizeMeter" title="כל כמה מטבעות = מכשול נעלם!"></span>
+    &nbsp;|&nbsp; 🏆 שיא: <b id="best">0</b>
+    <button id="soundBtn" tabindex="-1">🔊</button>
+  </div>
+
+  <div id="gameWrap">
+    <canvas id="game" width="800" height="400"></canvas>
+    <div id="overlay"><div class="card" id="card"></div></div>
+  </div>
+
+<script>
+// ============================================================
+//  ⚙️ אזור ההגדרות — כאן הכי כיף לשנות!
+//  שנו מספר, שמרו, ולחצו F5 כדי לראות מה קרה.
+// ============================================================
+
+// --- שם המשחק ---
+const GAME_NAME = "עומר על גלגלים";
+
+// --- מהירות ---
+const START_SPEED = 6;        // כמה מהר הרחוב זז בהתחלה
+const SPEED_UP = 0.15;        // בכמה המהירות עולה בכל פעם שעוברים מכשול
+const MAX_SPEED = 16;         // הכי מהר שהרחוב יכול לזוז
+
+// --- קפיצה ---
+const JUMP_POWER = 16;        // כמה חזק הרובוט קופץ (מספר גדול = קפיצה גבוהה יותר)
+const GRAVITY = 0.8;          // כוח המשיכה: כמה חזק מושכים את הרובוט חזרה למטה
+                              // (נסו 0.3 — כמו לקפוץ על הירח! 🌙)
+
+// --- סלטה 🤸 (רעיון של עומר) ---
+const FLIP_SPEED = 15;        // בכמה מעלות הרובוט מסתובב בכל רגע (סיבוב שלם = 360 מעלות)
+const TRICK_BONUS = 3;        // כמה נקודות בונוס מקבלים על סלטה שלמה
+
+// --- מטבעות 🪙 (רעיון של עומר) ---
+const COIN_VALUE = 1;         // כמה נקודות שווה כל מטבע
+const COINS_IN_A_ROW = 3;     // כמה מטבעות יש בכל קשת באוויר
+const COIN_CHANCE = 1;        // הסיכוי שתופיע קשת מטבעות כשיש מקום (1 = תמיד, 0.5 = חצי מהפעמים)
+const COIN_COLOR = "#ffd600"; // הצבע של המטבע
+
+// --- צלילים 🔊 (רעיון של עומר) ---
+// --- פרס 🎁 (רעיון של עומר) ---
+const COINS_FOR_PRIZE = 3;    // כל כמה מטבעות מקבלים פרס: המכשול הכי קרוב נעלם בפוף!
+
+// --- רמפות 🛹 (כבויות — עומר החליט בלי רמפות, 17.10.2026) ---
+const RAMP_CHANCE = 0;        // הסיכוי שבמקום מכשול תופיע רמפה (0 = כבוי, 0.25 = רבע מהפעמים)
+const RAMP_POWER = 18;        // כמה חזק הרמפה מעיפה את הרובוט (הקפיצה הרגילה היא 16)
+const RAMP_COLOR = "#d7a36a"; // הצבע של הרמפה (עץ)
+
+// --- צלילים 🔊 (המשך) ---
+const VOLUME = 0.5;           // כמה חזק (0 = שקט, 1 = הכי חזק)
+const JUMP_SOUND_HIGH = 620;  // כמה גבוה ה"בוינג" של הקפיצה מגיע (מספר גדול = צליל גבוה יותר)
+
+// --- מכשולים ---
+const OBSTACLE_GAP_MIN = 50;  // הכי מעט זמן בין שני מכשולים (מספר קטן = מכשולים צפופים)
+const OBSTACLE_GAP_MAX = 110; // הכי הרבה זמן בין שני מכשולים
+
+// --- הצבעים של הרובוט ---
+const ROBOT_COLOR = "#b0bec5";          // הגוף והראש (כסוף)
+const ROBOT_DARK_COLOR = "#78909c";     // הרגליים, הידיים והקווים
+const ROBOT_EYES_COLOR = "#00e5ff";     // העיניים הזוהרות
+const ANTENNA_LIGHT_COLOR = "#ff1744";  // הנורה המהבהבת על האנטנה
+const BOARD_COLOR = "#ff6d00";          // הסקייטבורד
+const WHEEL_COLOR = "#ffeb3b";          // הגלגלים
+
+// --- הצבעים של העיר ---
+const SKY_TOP_COLOR = "#4fc3f7";        // השמיים למעלה
+const SKY_BOTTOM_COLOR = "#e1f5fe";     // השמיים ליד האופק
+const SUN_COLOR = "#ffeb3b";            // השמש
+const BUILDING_COLORS = ["#90a4ae", "#a1887f", "#7986cb", "#4db6ac", "#f06292", "#ffb74d"];
+const SIDEWALK_COLOR = "#cfd8dc";       // המדרכה שהרובוט נוסע עליה
+const ROAD_COLOR = "#455a64";           // הכביש
+const FAR_CITY_COLOR = "#a7c4dc";       // הבניינים הרחוקים מאחור (מעורפלים, כמו באמת)
+
+// --- תלת-ממד 🧊 (רעיון של עומר) ---
+const DEPTH = 16;             // כמה עמוקים הבניינים (0 = שטוחים כמו דף, 30 = עבים מאוד)
+const SHADOWS = true;         // צללים על המדרכה (false = בלי צללים)
+
+// ============================================================
+//  🧠 מכאן והלאה: המנוע של המשחק
+//  (אפשר לקרוא ולהבין, ואם רוצים לשנות — כדאי לשאול את Claude)
+// ============================================================
+
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");    // ה"מכחול" שבעזרתו מציירים על המסך
+const W = canvas.width;                 // רוחב המסך של המשחק (800)
+const H = canvas.height;                // גובה המסך של המשחק (400)
+const GROUND_Y = 330;                   // הגובה של המדרכה: כאן הגלגלים נוגעים ברצפה
+
+const overlay = document.getElementById("overlay");
+const card = document.getElementById("card");
+const scoreEl = document.getElementById("score");
+const coinsEl = document.getElementById("coins");
+const prizeMeterEl = document.getElementById("prizeMeter");
+const bestEl = document.getElementById("best");
+
+// שם המשחק מופיע בכותרת ובלשונית של הדפדפן
+document.getElementById("title").textContent = GAME_NAME + " 🛹";
+document.title = GAME_NAME + " 🛹";
+
+// בטלפון ובטאבלט אין מקלדת — אז כותבים "נגיעה" במקום "רווח"
+const TOUCH = !!(window.matchMedia && matchMedia("(pointer: coarse)").matches);
+const JUMP_HOW = TOUCH ? "נגיעה במשחק = קפיצה" : "רווח / חץ למעלה / קליק = קפיצה";
+const FLIP_HOW = TOUCH ? "עוד נגיעה באוויר = סלטה 🤸" : "עוד לחיצה באוויר = סלטה 🤸";
+document.getElementById("help").textContent = JUMP_HOW + " · " + FLIP_HOW;
+
+// --- המצב של המשחק ---
+let state = "start";        // "start" = מסך פתיחה · "playing" = משחקים · "over" = נגמר
+let score = 0;              // כמה נקודות צברנו
+let tricks = 0;             // כמה סלטות שלמות עשינו במשחק הזה
+let best = loadBest();      // השיא — נשמר בדפדפן גם אחרי שסוגרים אותו
+let newRecord = false;      // האם הפעם שברנו שיא?
+let speed = START_SPEED;    // המהירות של הרחוב עכשיו
+let obstacles = [];         // כל המכשולים שנמצאים עכשיו ברחוב
+let coins = [];             // כל המטבעות שמרחפים עכשיו באוויר
+let coinsCollected = 0;     // כמה מטבעות אספנו במשחק הזה
+let prizesWaiting = 0;      // 🎁 פרסים שמחכים (כל פרס = המכשול הקרוב ייעלם)
+let poofs = 0;              // כמה מכשולים העלמנו במשחק הזה
+let ramps = 0;              // מכמה רמפות עפנו במשחק הזה
+let sparkles = [];          // הנצנצים והעשן של ה"פוף" ✨
+let nextObstacleIn = 500;   // כמה דרך נשארה עד שיופיע המכשול הבא
+let popups = [];            // ה-"+1" הקטנים שעפים למעלה כשעוברים מכשול
+let roadOffset = 0;         // כמה הרחוב כבר זז (בשביל הפסים על הכביש)
+let jumpBuffer = 0;         // אם לחצו "קפוץ" רגע לפני הנחיתה — נקפוץ מיד כשנוחתים
+let overTime = 0;           // מתי נתקענו (כדי לא להתחיל מחדש בטעות)
+
+// --- הרובוט ---
+const robot = {
+  x: 140,           // איפה הוא עומד לרוחב המסך
+  y: GROUND_Y,      // הגובה של התחתית של הגלגלים
+  vy: 0,            // המהירות למעלה או למטה (מספר שלילי = עולה למעלה)
+  onGround: true,   // האם הוא על הרצפה?
+  wheelAngle: 0,    // כמה הגלגלים הסתובבו
+  flipping: false,  // האם הוא באמצע סלטה?
+  flipAngle: 0,     // כמה מעלות הוא כבר הסתובב בסלטה (0 עד 360)
+  onRamp: null,     // על איזו רמפה הוא נוסע עכשיו (null = על אף רמפה)
+  crashed: false    // האם הוא נתקע במכשול?
+};
+
+// הגודל של הרמפה: רוחב וגובה (בפיקסלים)
+const RAMP_W = 90;
+const RAMP_H = 40;
+
+// --- סוגי המכשולים: רוחב (w) וגובה (h) של כל אחד ---
+const OBSTACLE_TYPES = [
+  { name: "cone",     w: 28, h: 38 },   // קונוס כתום
+  { name: "trashcan", w: 34, h: 50 },   // פח זבל ירוק
+  { name: "hydrant",  w: 26, h: 36 }    // ברז כיבוי אש אדום
+];
+
+// מספר אקראי בין a ל-b
+function rand(a, b) { return a + Math.random() * (b - a); }
+
+// 🧊 הסוד של התלת-ממד: אותו צבע, רק בהיר יותר (באור) או כהה יותר (בצל).
+// amount בין 1- ל-1: מינוס = כהה יותר, פלוס = בהיר יותר
+function shade(hex, amount) {
+  if (!/^#[0-9a-f]{6}$/i.test(hex)) return hex;   // צבע שכתוב במילים (כמו "red") — משאירים כמו שהוא
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  if (amount < 0) { r *= 1 + amount; g *= 1 + amount; b *= 1 + amount; }
+  else { r += (255 - r) * amount; g += (255 - g) * amount; b += (255 - b) * amount; }
+  return "rgb(" + Math.round(r) + "," + Math.round(g) + "," + Math.round(b) + ")";
+}
+
+// צל על המדרכה. השמש למעלה מימין, אז הצל נופל קצת שמאלה
+function drawShadow(cx, width, strength) {
+  if (!SHADOWS) return;
+  ctx.fillStyle = "rgba(0, 0, 0, " + strength + ")";
+  ctx.beginPath();
+  ctx.ellipse(cx - 7, GROUND_Y + 3, width / 2, Math.max(1.5, width / 9), 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// ------------------------------------------------------------
+//  🏙️ העיר ברקע: בניינים ועננים
+// ------------------------------------------------------------
+let buildings = [];      // הבניינים הקרובים (עם עומק, גג וחלונות)
+let farBuildings = [];   // הבניינים הרחוקים מאחור (מעורפלים)
+let clouds = [];
+
+function makeBuilding(x) {
+  return {
+    x: x,
+    w: rand(60, 120),
+    h: rand(90, 230),
+    color: BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)],
+    seed: Math.floor(rand(0, 100)),     // בשביל לבחור אילו חלונות מבריקים
+    solar: Math.random() < 0.5          // האם יש על הגג דוד שמש? ☀️
+  };
+}
+
+function makeFarBuilding(x) {
+  return {
+    x: x,
+    w: rand(40, 90),
+    h: rand(150, 270),
+    color: shade(FAR_CITY_COLOR, rand(-0.1, 0.1))
+  };
+}
+
+// ממלאים שורה של בניינים לאורך כל המסך, ועוד קצת מימין
+function fillLayer(maker, gapMin, gapMax) {
+  const list = [];
+  let x = -DEPTH;
+  while (x < W + 200) {
+    const b = maker(x);
+    list.push(b);
+    x += b.w + rand(gapMin, gapMax);
+  }
+  return list;
+}
+
+function buildCity() {
+  buildings = fillLayer(makeBuilding, 4, 22);
+  farBuildings = fillLayer(makeFarBuilding, 0, 8);
+  // כמה עננים בשמיים
+  clouds = [];
+  for (let i = 0; i < 5; i++) {
+    clouds.push({ x: rand(0, W), y: rand(30, 120), size: rand(0.7, 1.3) });
+  }
+}
+buildCity();
+
+// ------------------------------------------------------------
+//  🎮 התחלה, קפיצה ונתקעות
+// ------------------------------------------------------------
+function startGame() {
+  state = "playing";
+  score = 0;
+  tricks = 0;
+  speed = START_SPEED;
+  obstacles = [];
+  coins = [];
+  coinsCollected = 0;
+  prizesWaiting = 0;
+  poofs = 0;
+  ramps = 0;
+  robot.onRamp = null;
+  sparkles = [];
+  popups = [];
+  nextObstacleIn = 500;
+  robot.y = GROUND_Y;
+  robot.vy = 0;
+  robot.onGround = true;
+  robot.flipping = false;
+  robot.flipAngle = 0;
+  robot.crashed = false;
+  jumpBuffer = 0;
+  newRecord = false;
+  overlay.classList.add("hidden");
+  if (document.activeElement) document.activeElement.blur();
+  updateScoreboard();
+}
+
+function doJump() {
+  robot.vy = -JUMP_POWER;   // דחיפה חזקה למעלה
+  robot.onGround = false;
+  robot.onRamp = null;      // אם קפצנו מאמצע רמפה — כבר לא נוסעים עליה
+  jumpBuffer = 0;
+  soundJump();              // בוינג! 🦘
+}
+
+// מה קורה כשלוחצים על כפתור הקפיצה — תלוי איפה אנחנו במשחק
+function pressJump() {
+  startAudio();             // הדפדפן מרשה צלילים רק אחרי שלוחצים על משהו — אז מדליקים את הרמקול עכשיו
+  if (state === "start") { startGame(); return; }
+  if (state === "over") {
+    // מחכים חצי שנייה אחרי שנתקעים, כדי שלחיצה של קפיצה לא תתחיל משחק חדש בטעות
+    if (performance.now() - overTime > 600) startGame();
+    return;
+  }
+  if (robot.onGround) doJump();
+  else if (!robot.flipping && !almostLanding()) startFlip();   // לחיצה באוויר = סלטה! 🤸
+  else jumpBuffer = 8;      // רגע לפני הנחיתה? נזכור את הלחיצה ונקפוץ ברגע שנוחתים
+}
+
+function startFlip() {
+  robot.flipping = true;
+  robot.flipAngle = 0;
+}
+
+// האם הרובוט עומד לנחות ממש עוד רגע? (אז לחיצה = קפיצה חדשה, לא סלטה)
+function almostLanding() {
+  return robot.vy > 0 && GROUND_Y - robot.y < robot.vy * 8;
+}
+
+function crash() {
+  state = "over";
+  robot.crashed = true;
+  robot.flipping = false;
+  robot.onRamp = null;
+  overTime = performance.now();
+  soundCrash();             // בום! 💥
+  // רעידת מסך: מורידים את הרעידה ומחזירים אותה כדי שתתחיל מההתחלה
+  canvas.classList.remove("shake");
+  void canvas.offsetWidth;
+  canvas.classList.add("shake");
+  if (score > best) {
+    best = score;
+    newRecord = true;
+    saveBest(best);
+  }
+  updateScoreboard();
+  showOverScreen();
+}
+
+// ------------------------------------------------------------
+//  🔊 צלילים — המחשב מנגן אותם בעצמו, בלי קבצי שמע!
+//  צליל = רטט מהיר באוויר. כמה פעמים בשנייה הוא רוטט = כמה גבוה הצליל.
+//  למשל 440 פעמים בשנייה = התו "לה". 880 = "לה" אחד גבוה יותר.
+// ------------------------------------------------------------
+let audio = null;               // הרמקול של המשחק (נדלק בלחיצה הראשונה)
+let soundOn = loadSoundOn();    // האם הצלילים פתוחים? (הכפתור 🔊 / 🔇)
+
+function startAudio() {
+  try {
+    if (!audio) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;          // דפדפן ישן בלי צלילים — המשחק עובד גם בלעדיהם
+      audio = new AC();
+    }
+    if (audio.state === "suspended") audio.resume();
+  } catch (e) {}
+}
+
+// צליל אחד: "גל" (wave) שמתחיל בגובה from ומחליק לגובה to, לאורך time שניות.
+// סוגי גלים: "square" (צליל של משחק ישן), "sine" (רך), "sawtooth" (חורק), "triangle" (עגול)
+function beep(wave, from, to, time, delay, volume) {
+  if (!audio || !soundOn) return;
+  const t = audio.currentTime + delay;
+  const osc = audio.createOscillator();     // המכשיר שמייצר את הרטט
+  const gain = audio.createGain();          // כפתור העוצמה
+  osc.type = wave;
+  osc.frequency.setValueAtTime(from, t);
+  osc.frequency.exponentialRampToValueAtTime(to, t + time);
+  gain.gain.setValueAtTime(VOLUME * volume, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + time);   // הצליל דועך עד שקט
+  osc.connect(gain);
+  gain.connect(audio.destination);
+  osc.start(t);
+  osc.stop(t + time + 0.05);
+}
+
+// רעש (כמו "ששששש") — בשביל הבום של הנתקעות
+function noise(time, volume) {
+  if (!audio || !soundOn) return;
+  const t = audio.currentTime;
+  const buffer = audio.createBuffer(1, Math.floor(audio.sampleRate * time), audio.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;   // מספרים אקראיים = רעש
+  const src = audio.createBufferSource();
+  src.buffer = buffer;
+  const filter = audio.createBiquadFilter();  // מסנן שמשאיר רק את הצלילים הנמוכים, ככה זה נשמע "בום"
+  filter.type = "lowpass";
+  filter.frequency.value = 800;
+  const gain = audio.createGain();
+  gain.gain.setValueAtTime(VOLUME * volume, t);
+  gain.gain.exponentialRampToValueAtTime(0.001, t + time);
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(audio.destination);
+  src.start(t);
+}
+
+function soundJump() {          // 🦘 בוינג — צליל שעולה למעלה
+  beep("square", 250, JUMP_SOUND_HIGH, 0.16, 0, 0.25);
+}
+function soundCoin() {          // 🪙 דינג-דינג — שני צלילים גבוהים, השני יותר גבוה
+  beep("square", 988, 988, 0.08, 0, 0.22);
+  beep("square", 1319, 1319, 0.3, 0.08, 0.22);
+}
+function soundCrash() {         // 💥 בום, וצליל עצוב שיורד למטה
+  noise(0.45, 0.9);
+  beep("sawtooth", 220, 55, 0.55, 0, 0.35);
+}
+function soundRamp() {          // 🚀 ווּוּש — צליל ארוך שעולה, כמו טיל
+  beep("triangle", 180, 900, 0.45, 0, 0.5);
+  beep("square", 360, 1400, 0.3, 0.05, 0.1);
+}
+function soundPoof() {          // 🎁 קסם — ארבעה צלילים שעולים כמו מדרגות (דו, מי, סול, דו)
+  const notes = [523, 659, 784, 1047];
+  for (let i = 0; i < notes.length; i++) {
+    beep("triangle", notes[i], notes[i], 0.18, i * 0.07, 0.45);
+  }
+}
+
+// הכפתור 🔊 / 🔇 — פותח וסוגר את הצלילים (גם המקש M עושה את זה)
+const soundBtn = document.getElementById("soundBtn");
+function toggleSound() {
+  soundOn = !soundOn;
+  saveSoundOn(soundOn);
+  showSoundButton();
+  if (soundOn) { startAudio(); soundCoin(); }   // דינג קטן כדי לשמוע שזה עובד
+}
+function showSoundButton() {
+  soundBtn.textContent = soundOn ? "🔊" : "🔇";
+  soundBtn.title = soundOn ? "להשתיק את הצלילים (M)" : "להפעיל את הצלילים (M)";
+}
+function loadSoundOn() {
+  try { return localStorage.getItem("omer-skate-sound") !== "off"; } catch (e) { return true; }
+}
+function saveSoundOn(on) {
+  try { localStorage.setItem("omer-skate-sound", on ? "on" : "off"); } catch (e) {}
+}
+soundBtn.addEventListener("pointerdown", function (e) { e.preventDefault(); });   // שהכפתור לא "יתפוס" את הרווח
+soundBtn.addEventListener("click", toggleSound);
+showSoundButton();
+
+// ------------------------------------------------------------
+//  🪟 החלונות שמעל המשחק
+// ------------------------------------------------------------
+function showStartScreen() {
+  card.innerHTML =
+    '<div class="big">' + GAME_NAME + ' 🤖🛹</div>' +
+    '<div class="line">עזרו לרובוט לקפוץ מעל המכשולים ברחוב!</div>' +
+    '<div class="line">' + JUMP_HOW + '</div>' +
+    '<div class="line">' + FLIP_HOW + ' ובונוס!</div>' +
+    '<div class="line">קופצים לאסוף מטבעות <span class="coin"></span> · כל ' + prizeEvery() + ' = פרס 🎁 מכשול נעלם!</div>' +
+    (RAMP_CHANCE > 0 ? '<div class="line">רמפות 🛹 מעיפות את הרובוט גבוה!</div>' : '') +
+    '<button class="bigBtn">יאללה, נוסעים! 🛹</button>';
+  overlay.classList.remove("hidden");
+}
+
+function showOverScreen() {
+  card.innerHTML =
+    '<div class="big">💥 אוי! הרובוט נתקע!</div>' +
+    '<div class="line">צברת <span class="gold">' + score + '</span> נקודות</div>' +
+    (tricks > 0 ? '<div class="line">עשית <span class="gold">' + tricks + '</span> סלטות 🤸</div>' : '') +
+    (coinsCollected > 0 ? '<div class="line">אספת <span class="gold">' + coinsCollected + '</span> מטבעות <span class="coin"></span></div>' : '') +
+    (poofs > 0 ? '<div class="line">העלמת <span class="gold">' + poofs + '</span> מכשולים 🎁</div>' : '') +
+    (ramps > 0 ? '<div class="line">עפת מ-<span class="gold">' + ramps + '</span> רמפות 🛹</div>' : '') +
+    (newRecord ? '<div class="line gold">🏆 שיא חדש! כל הכבוד!</div>' : '') +
+    '<button class="bigBtn">עוד פעם! 🔄</button>' +
+    (TOUCH ? '' : '<div class="small">(או לחצו רווח)</div>');
+  overlay.classList.remove("hidden");
+}
+
+function updateScoreboard() {
+  scoreEl.textContent = score;
+  coinsEl.textContent = coinsCollected;
+  bestEl.textContent = best;
+  // מד הפרס: כמה מטבעות כבר יש לנו בדרך לפרס הבא (זהב = יש, אפור = עוד חסר)
+  const filled = coinsCollected % prizeEvery();
+  let meter = "🎁 ";
+  for (let i = 0; i < prizeEvery(); i++) {
+    meter += '<span class="coin' + (i < filled ? '' : ' empty') + '"></span>';
+  }
+  prizeMeterEl.innerHTML = meter;
+}
+
+// כל כמה מטבעות מקבלים פרס (לפחות 1, כדי שהחשבון לא יתבלבל)
+function prizeEvery() {
+  return Math.max(1, Math.round(COINS_FOR_PRIZE));
+}
+
+// השיא נשמר בזיכרון של הדפדפן (ואם הדפדפן לא מרשה — פשוט לא שומרים)
+function loadBest() {
+  try { return parseInt(localStorage.getItem("omer-skate-best")) || 0; }
+  catch (e) { return 0; }
+}
+function saveBest(value) {
+  try { localStorage.setItem("omer-skate-best", value); } catch (e) {}
+}
+
+// ------------------------------------------------------------
+//  🎯 המקלדת, העכבר והמגע
+// ------------------------------------------------------------
+document.addEventListener("keydown", function (e) {
+  if (e.code === "Space" || e.code === "ArrowUp" || e.code === "KeyW") {
+    e.preventDefault();               // שהרווח לא יגלול את הדף
+    if (!e.repeat) pressJump();       // לחיצה ארוכה = קפיצה אחת בלבד
+  }
+  if (e.code === "KeyM" && !e.repeat) toggleSound();   // M = השתקה / צלילים
+});
+canvas.addEventListener("pointerdown", function (e) {
+  e.preventDefault();
+  pressJump();
+});
+overlay.addEventListener("click", pressJump);
+
+// ------------------------------------------------------------
+//  🔄 העדכון: מה זז בכל רגע במשחק
+// ------------------------------------------------------------
+function update(dt) {
+  // 1. הרחוב זז אחורה — וככה נראה שהרובוט נוסע קדימה
+  roadOffset += speed * dt;
+
+  // 2. הבניינים זזים לאט יותר מהרחוב, כי הם רחוקים — והבניינים הכי רחוקים זזים הכי לאט.
+  //    ככה העין מרגישה עומק (זה נקרא "פרלקסה")
+  moveLayer(buildings, 0.35, makeBuilding, 4, 22, dt);
+  moveLayer(farBuildings, 0.15, makeFarBuilding, 0, 8, dt);
+  // והעננים הכי רחוקים — זזים הכי לאט
+  for (const c of clouds) {
+    c.x -= speed * 0.1 * dt;
+    if (c.x < -80) { c.x = W + 80; c.y = rand(30, 120); }
+  }
+
+  // 3. הסלטה: בכל רגע הרובוט מסתובב עוד קצת, עד שמגיע ל-360 מעלות (סיבוב שלם)
+  if (robot.flipping) {
+    robot.flipAngle += FLIP_SPEED * dt;
+    if (robot.flipAngle >= 360) {
+      robot.flipping = false;
+      robot.flipAngle = 0;
+      tricks++;
+      score += TRICK_BONUS;
+      addPopup("סלטה!", "rtl", "#7b1fa2", 30);
+      addPopup("+" + TRICK_BONUS, "ltr", "#7b1fa2", 0);
+      updateScoreboard();
+    }
+  }
+
+  // 4. הקפיצה וכוח המשיכה
+  if (!robot.onGround) {
+    robot.vy += GRAVITY * dt;       // כוח המשיכה מושך למטה קצת בכל רגע
+    robot.y += robot.vy * dt;       // הרובוט זז לפי המהירות שלו
+    if (robot.y >= GROUND_Y) {      // נגע ברצפה? נוחתים!
+      robot.y = GROUND_Y;
+      robot.vy = 0;
+      robot.onGround = true;
+      missedFlip();
+      if (jumpBuffer > 0) doJump();
+    }
+  }
+  if (jumpBuffer > 0) jumpBuffer -= dt;
+  robot.wheelAngle += speed * dt / 6;
+
+  // 5. מכשולים חדשים
+  nextObstacleIn -= speed * dt;
+  if (nextObstacleIn <= 0) spawnObstacle();
+
+  // 🎁 יש פרס שמחכה? המכשול הכי קרוב שלפני הרובוט (ושכבר רואים על המסך) נעלם בפוף!
+  if (prizesWaiting > 0) {
+    let nearest = null;
+    for (const o of obstacles) {
+      const ahead = !o.passed && o.x + o.w > robot.x - 22;
+      const onScreen = o.x < W - 20;
+      if (ahead && onScreen && (!nearest || o.x < nearest.x)) nearest = o;
+    }
+    if (nearest) {
+      poof(nearest);
+      prizesWaiting--;
+    }
+  }
+
+  // 6. המכשולים זזים, ובודקים: עברנו? נתקענו? (ורמפה — עולים עליה!)
+  for (const o of obstacles) {
+    o.x -= speed * dt;
+    if (o.type === "ramp") { rideRamp(o); continue; }   // רמפה לא מסוכנת — נוסעים עליה
+    if (!o.passed && o.x + o.w < robot.x - 22) {
+      o.passed = true;
+      score++;
+      speed = Math.min(MAX_SPEED, speed + SPEED_UP);
+      addPopup("+1", "ltr", "#e65100", 0);
+      updateScoreboard();
+    }
+    if (hitsRobot(o)) { crash(); return; }
+  }
+  obstacles = obstacles.filter(o => o.x + o.w > -20);   // מכשול שיצא מהמסך — נמחק
+
+  // 7. המטבעות זזים עם הרחוב, ובודקים אם הרובוט נגע באחד מהם
+  for (const c of coins) {
+    c.x -= speed * dt;
+    if (!c.taken && touchesCoin(c)) {
+      c.taken = true;
+      coinsCollected++;
+      score += COIN_VALUE;
+      soundCoin();          // דינג-דינג! 🪙
+      addPopup("+" + COIN_VALUE, "ltr", "#ff8f00", 0, c.x, c.y - 18);
+      // 🎁 אספנו מספיק מטבעות? מגיע פרס!
+      if (coinsCollected % prizeEvery() === 0) {
+        prizesWaiting++;
+        addPopup("🎁 פרס!", "rtl", "#7b1fa2", 30);
+      }
+      updateScoreboard();
+    }
+  }
+  coins = coins.filter(c => !c.taken && c.x > -20);    // מטבע שנאסף או שיצא מהמסך — נמחק
+
+  // 8. ה-"+1" וה"סלטה!" עולים למעלה ונעלמים
+  for (const p of popups) { p.y -= 1.2 * dt; p.life -= 0.025 * dt; }
+  popups = popups.filter(p => p.life > 0);
+
+  // 9. הנצנצים של הפוף עפים לכל הכיוונים, נופלים קצת ונעלמים
+  for (const s of sparkles) {
+    s.x += (s.vx - speed * 0.5) * dt;
+    s.y += s.vy * dt;
+    s.vy += 0.08 * dt;
+    s.life -= s.fade * dt;
+  }
+  sparkles = sparkles.filter(s => s.life > 0);
+}
+
+// נחת באמצע הסלטה? לא נורא — רק בלי בונוס
+function missedFlip() {
+  if (!robot.flipping) return;
+  robot.flipping = false;
+  robot.flipAngle = 0;
+  addPopup("כמעט!", "rtl", "#546e7a", 0);
+}
+
+// ------------------------------------------------------------
+//  🛹 רמפות
+// ------------------------------------------------------------
+
+// כמה גבוה המשטח של הרמפה בנקודה px (מינוס 1 = הנקודה בכלל לא על הרמפה)
+function rampHeightAt(o, px) {
+  if (px < o.x || px > o.x + o.w) return -1;
+  return o.h * (px - o.x) / o.w;   // ככל שמתקדמים על הרמפה — עולים גבוה יותר
+}
+
+function rideRamp(o) {
+  if (robot.crashed) return;
+
+  if (robot.onRamp === o) {
+    if (robot.x > o.x + o.w) {
+      // 🚀 הגענו לקצה הרמפה — עפים!
+      robot.onRamp = null;
+      robot.onGround = false;
+      robot.y = GROUND_Y - o.h;
+      robot.vy = -RAMP_POWER;
+      ramps++;
+      addPopup("וואו!", "rtl", "#0277bd", 30);
+      soundRamp();
+    } else {
+      robot.y = GROUND_Y - rampHeightAt(o, robot.x);   // נוסעים במעלה הרמפה
+    }
+    return;
+  }
+
+  // עוד לא על הרמפה: עולים עליה מהרצפה, או נוחתים עליה מהאוויר
+  const h = rampHeightAt(o, robot.x);
+  if (h < 0) return;
+  const landing = !robot.onGround && robot.vy >= 0 && robot.y >= GROUND_Y - h;
+  if (robot.onGround || landing) {
+    if (landing) missedFlip();
+    robot.onRamp = o;
+    robot.onGround = true;
+    robot.vy = 0;
+    robot.y = GROUND_Y - h;
+    if (landing && jumpBuffer > 0) doJump();
+  }
+}
+
+// כמה זמן הרובוט באוויר כשהרמפה מעיפה אותו
+function rampFlightTime() {
+  return (RAMP_POWER + Math.sqrt(RAMP_POWER * RAMP_POWER + 2 * GRAVITY * RAMP_H)) / GRAVITY;
+}
+
+function spawnRamp() {
+  const ramp = { type: "ramp", w: RAMP_W, h: RAMP_H, x: W + 10, passed: true };
+  obstacles.push(ramp);
+  // אחרי הרמפה — מספיק מקום לעוף, לנחות ולהתכונן למכשול הבא
+  const gap = rampFlightTime() + rand(35, 55);
+  nextObstacleIn = speed * gap + ramp.w;
+
+  // 🪙 קשת מטבעות סודית בדיוק בגובה של המעוף — אפשר להגיע אליה רק מהרמפה!
+  const topTime = RAMP_POWER / GRAVITY;     // מתי הרובוט מגיע הכי גבוה
+  for (let i = 0; i < COINS_IN_A_ROW; i++) {
+    const fromMiddle = i - (COINS_IN_A_ROW - 1) / 2;
+    const t = topTime + fromMiddle * 8;
+    const height = RAMP_H + RAMP_POWER * t - GRAVITY * t * (t + 1) / 2;
+    coins.push({
+      x: ramp.x + ramp.w + speed * t,
+      y: Math.max(14, GROUND_Y - height - 30),
+      spin: i * 0.6,
+      taken: false
+    });
+  }
+}
+
+// 💨 פוף! המכשול נעלם, ובמקומו ענן עשן קטן ונצנצים צבעוניים
+function poof(o) {
+  obstacles = obstacles.filter(other => other !== o);
+  poofs++;
+  const cx = o.x + o.w / 2, cy = GROUND_Y - o.h / 2;
+  // ענן עשן לבן: עיגולים גדולים שזזים לאט
+  for (let i = 0; i < 6; i++) {
+    const a = Math.random() * Math.PI * 2;
+    sparkles.push({ x: cx, y: cy, vx: Math.cos(a) * 1.2, vy: Math.sin(a) * 1.2 - 0.6,
+                    size: rand(9, 14), color: "#ffffff", life: 1, fade: 0.035 });
+  }
+  // נצנצים צבעוניים: נקודות קטנות שעפות מהר
+  const colors = ["#ffd600", "#e040fb", "#00e5ff", "#76ff03"];
+  for (let i = 0; i < 20; i++) {
+    const a = Math.random() * Math.PI * 2, s = rand(2, 5);
+    sparkles.push({ x: cx, y: cy, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 1.5,
+                    size: rand(2, 4), color: colors[i % colors.length], life: 1, fade: 0.025 });
+  }
+  addPopup("פוף!", "rtl", "#7b1fa2", 0, cx, GROUND_Y - o.h - 18);
+  soundPoof();
+}
+
+// כיתוב קטן שעף למעלה מעל הרובוט.
+// dir = כיוון הכתיבה: "rtl" לעברית, "ltr" למספרים (כדי ש-+1 לא ייראה כמו 1+)
+// אם לא אומרים איפה (x, y) — הכיתוב מופיע מעל הראש של הרובוט
+function addPopup(text, dir, color, raise, x, y) {
+  if (x === undefined) x = robot.x;
+  if (y === undefined) y = robot.y - 115;
+  popups.push({ text: text, dir: dir, color: color, x: x, y: y - raise, life: 1 });
+}
+
+// מזיזים שורת בניינים. בניין שיצא משמאל — חוזר מימין כבניין חדש
+function moveLayer(list, factor, maker, gapMin, gapMax, dt) {
+  let rightEdge = 0;
+  for (const b of list) rightEdge = Math.max(rightEdge, b.x + b.w);
+  for (const b of list) {
+    b.x -= speed * factor * dt;
+    if (b.x + b.w < -DEPTH) {
+      Object.assign(b, maker(rightEdge + rand(gapMin, gapMax)));
+      rightEdge = b.x + b.w;
+    }
+  }
+}
+
+function spawnObstacle() {
+  if (Math.random() < RAMP_CHANCE) { spawnRamp(); return; }   // 🛹 הפעם — רמפה!
+  const type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
+  obstacles.push({ type: type.name, w: type.w, h: type.h, x: W + 10, passed: false });
+  // כמה זמן הרובוט באוויר בקפיצה אחת — כדי שתמיד יהיה מספיק זמן לנחות ולקפוץ שוב
+  const airTime = 2 * JUMP_POWER / GRAVITY;
+  const minGap = Math.max(OBSTACLE_GAP_MIN, airTime + 10);
+  const maxGap = Math.max(OBSTACLE_GAP_MAX, minGap + 20);
+  const gap = rand(minGap, maxGap);
+  nextObstacleIn = speed * gap + type.w;
+
+  // 🪙 קשת מטבעות באמצע הרווח — רק אם הרווח גדול מספיק כדי לנחות,
+  // לקפוץ אל המטבעות ולנחות שוב לפני המכשול הבא
+  if (gap >= airTime * 2 + 10 && Math.random() < COIN_CHANCE) {
+    const middle = W + 10 + type.w + speed * gap / 2;
+    for (let i = 0; i < COINS_IN_A_ROW; i++) {
+      const fromMiddle = i - (COINS_IN_A_ROW - 1) / 2;       // ‎-1, 0, 1 (שמאל, אמצע, ימין)
+      coins.push({
+        x: middle + fromMiddle * 45,
+        y: GROUND_Y - 150 + Math.abs(fromMiddle) * 30,       // האמצעי הכי גבוה, ככה יוצאת קשת
+        spin: i * 0.6,                                       // כל מטבע מסתובב קצת אחרת
+        taken: false
+      });
+    }
+  }
+}
+
+// האם הרובוט נוגע במטבע? בודקים אם הקופסה הבלתי נראית של הרובוט נוגעת בקופסה של המטבע
+function touchesCoin(c) {
+  const r = 11;   // הרדיוס (חצי הרוחב) של המטבע
+  return robot.x - 24 < c.x + r && robot.x + 24 > c.x - r &&
+         robot.y - 95 < c.y + r && robot.y > c.y - r;
+}
+
+// האם המכשול נוגע ברובוט? (משאירים קצת מקום, כדי שנגיעה של פיקסל אחד לא תיחשב)
+function hitsRobot(o) {
+  const rLeft = robot.x - 22, rRight = robot.x + 22;
+  const rTop = robot.y - 88, rBottom = robot.y - 2;
+  const oLeft = o.x + 4, oRight = o.x + o.w - 4;
+  const oTop = GROUND_Y - o.h + 4, oBottom = GROUND_Y;
+  return rLeft < oRight && rRight > oLeft && rTop < oBottom && rBottom > oTop;
+}
+
+// ------------------------------------------------------------
+//  🎨 הציור: מציירים את כל המסך מחדש בכל רגע
+// ------------------------------------------------------------
+const skyGradient = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+skyGradient.addColorStop(0, SKY_TOP_COLOR);
+skyGradient.addColorStop(1, SKY_BOTTOM_COLOR);
+
+function draw(now) {
+  // שמיים
+  ctx.fillStyle = skyGradient;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+  drawSun();
+  for (const c of clouds) drawCloud(c);
+  for (const b of farBuildings) drawFarBuilding(b);
+  // את הבניינים הקרובים מציירים מימין לשמאל: ככה הבניין השמאלי מסתיר את קיר הצד של זה שמימינו
+  const sorted = buildings.slice().sort((a, b) => b.x - a.x);
+  for (const b of sorted) drawBuilding(b);
+  drawRoad();
+  for (const o of obstacles) drawObstacle(o);
+  for (const c of coins) drawCoin(c, now);
+  drawRobot(now);
+  drawSparkles();
+  drawPopups();
+
+  // הרובוט עף כל כך גבוה שהוא יצא מהמסך? חץ קטן למעלה מראה איפה הוא
+  if (robot.y < 40) {
+    ctx.fillStyle = "#ff6d00";
+    ctx.beginPath();
+    ctx.moveTo(robot.x, 4); ctx.lineTo(robot.x - 9, 18); ctx.lineTo(robot.x + 9, 18);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawSparkles() {
+  for (const s of sparkles) {
+    ctx.globalAlpha = Math.max(0, s.life) * (s.color === "#ffffff" ? 0.8 : 1);
+    ctx.fillStyle = s.color;
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.size * (s.color === "#ffffff" ? 2 - s.life : 1), 0, Math.PI * 2);   // העשן גדל ומתפזר
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawSun() {
+  ctx.fillStyle = "rgba(255, 235, 59, 0.3)";
+  ctx.beginPath(); ctx.arc(690, 70, 48, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = SUN_COLOR;
+  ctx.beginPath(); ctx.arc(690, 70, 34, 0, Math.PI * 2); ctx.fill();
+}
+
+// ענן עם "בטן" אפורה למטה — ככה הוא נראה תפוח ועגול
+function cloudShape(c, dy) {
+  ctx.beginPath();
+  ctx.arc(c.x, c.y + dy, 18 * c.size, 0, Math.PI * 2);
+  ctx.arc(c.x + 20 * c.size, c.y - 8 * c.size + dy, 22 * c.size, 0, Math.PI * 2);
+  ctx.arc(c.x + 42 * c.size, c.y + dy, 17 * c.size, 0, Math.PI * 2);
+  ctx.fill();
+}
+function drawCloud(c) {
+  ctx.fillStyle = "rgba(176, 203, 222, 0.9)";   // הצל של הענן
+  cloudShape(c, 5 * c.size);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.95)";  // הענן עצמו
+  cloudShape(c, 0);
+}
+
+// בניין רחוק: שטוח ומעורפל, כי הוא ממש רחוק
+function drawFarBuilding(b) {
+  const top = GROUND_Y - b.h;
+  ctx.fillStyle = b.color;
+  ctx.fillRect(b.x, top, b.w, b.h);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.22)";
+  for (let wy = top + 10; wy < GROUND_Y - 14; wy += 18) {
+    for (let wx = b.x + 7; wx < b.x + b.w - 9; wx += 14) ctx.fillRect(wx, wy, 6, 8);
+  }
+}
+
+// 🧊 בניין קרוב בתלת-ממד: קיר קדמי, קיר צד בצל, גג מואר וחלונות שקועים בקיר
+function drawBuilding(b) {
+  const top = GROUND_Y - b.h;
+  const d = DEPTH, up = DEPTH * 0.6;   // כמה הצד האחורי של הבניין זז שמאלה ולמעלה
+
+  // קיר הצד — בצל, כי השמש מימין
+  ctx.fillStyle = shade(b.color, -0.32);
+  ctx.beginPath();
+  ctx.moveTo(b.x, top); ctx.lineTo(b.x - d, top - up);
+  ctx.lineTo(b.x - d, GROUND_Y - up); ctx.lineTo(b.x, GROUND_Y);
+  ctx.closePath(); ctx.fill();
+
+  // הגג — מואר מלמעלה
+  ctx.fillStyle = shade(b.color, 0.3);
+  ctx.beginPath();
+  ctx.moveTo(b.x, top); ctx.lineTo(b.x + b.w, top);
+  ctx.lineTo(b.x + b.w - d, top - up); ctx.lineTo(b.x - d, top - up);
+  ctx.closePath(); ctx.fill();
+
+  // דוד שמש על הגג ☀️ (כמו על הגגות בישראל)
+  if (b.solar && d > 0) {
+    const sx = b.x + b.w * 0.45, sy = top - up * 0.5;
+    ctx.fillStyle = "#1a237e";                       // הקולט — לוח כחול כהה
+    ctx.beginPath();
+    ctx.moveTo(sx - 16, sy + 2); ctx.lineTo(sx - 2, sy + 2);
+    ctx.lineTo(sx - 6, sy - 9); ctx.lineTo(sx - 20, sy - 9);
+    ctx.closePath(); ctx.fill();
+    const boiler = ctx.createLinearGradient(0, sy - 12, 0, sy);
+    boiler.addColorStop(0, "#ffffff"); boiler.addColorStop(1, "#b0bec5");
+    ctx.fillStyle = boiler;                          // הדוד — גליל לבן
+    roundRect(sx, sy - 12, 18, 9, 4.5);
+    ctx.fill();
+  }
+
+  // הקיר הקדמי — קצת יותר בהיר בצד ימין, איפה שהשמש
+  const g = ctx.createLinearGradient(b.x, 0, b.x + b.w, 0);
+  g.addColorStop(0, shade(b.color, -0.08));
+  g.addColorStop(1, shade(b.color, 0.14));
+  ctx.fillStyle = g;
+  ctx.fillRect(b.x, top, b.w, b.h);
+
+  // חלונות: צל קטן למעלה ומשמאל, ככה הם נראים שקועים בתוך הקיר
+  let i = 0;
+  for (let wy = top + 12; wy < GROUND_Y - 22; wy += 24) {
+    for (let wx = b.x + 10; wx < b.x + b.w - 14; wx += 20) {
+      i++;
+      ctx.fillStyle = shade(b.color, -0.4);
+      ctx.fillRect(wx, wy, 10, 12);
+      const shiny = (i * 7 + b.seed) % 6 === 0;      // חלק מהחלונות מחזירים את השמש
+      ctx.fillStyle = shiny ? "#fffde7" : "#d6ecfa";
+      ctx.fillRect(wx + 2, wy + 2, 8, 10);
+    }
+  }
+}
+
+function drawRoad() {
+  const top = GROUND_Y - 6;   // החלק העליון של המדרכה (רואים אותו קצת מלמעלה)
+
+  // המדרכה — כהה יותר בצד הרחוק, בהירה יותר בצד הקרוב
+  const g = ctx.createLinearGradient(0, top, 0, GROUND_Y + 14);
+  g.addColorStop(0, shade(SIDEWALK_COLOR, -0.12));
+  g.addColorStop(1, shade(SIDEWALK_COLOR, 0.2));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, top, W, 20);
+  // קווים אלכסוניים בין המרצפות — זזים יחד עם הרחוב
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.13)";
+  ctx.lineWidth = 2;
+  for (let x = -(roadOffset % 40); x < W + 10; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x - 7, GROUND_Y + 14); ctx.stroke();
+  }
+  // שפת המדרכה — הקיר הקטן שיורד אל הכביש
+  ctx.fillStyle = shade(SIDEWALK_COLOR, -0.3);
+  ctx.fillRect(0, GROUND_Y + 14, W, 8);
+
+  // הכביש — עם צל של המדרכה בחלק העליון
+  const rg = ctx.createLinearGradient(0, GROUND_Y + 22, 0, H);
+  rg.addColorStop(0, shade(ROAD_COLOR, -0.35));
+  rg.addColorStop(0.15, ROAD_COLOR);
+  rg.addColorStop(1, shade(ROAD_COLOR, 0.12));
+  ctx.fillStyle = rg;
+  ctx.fillRect(0, GROUND_Y + 22, W, H - GROUND_Y - 22);
+  // הפסים הלבנים באמצע הכביש
+  ctx.fillStyle = "#eceff1";
+  for (let x = -(roadOffset % 70); x < W; x += 70) {
+    ctx.fillRect(x, GROUND_Y + 45, 36, 5);
+  }
+}
+
+// 🧊 צבע של גליל (כמו פח או צינור): כהה בצד שמאל, מבריק קצת לפני הצד הימני
+function cylinder(left, right, color) {
+  const g = ctx.createLinearGradient(left, 0, right, 0);
+  g.addColorStop(0, shade(color, -0.4));
+  g.addColorStop(0.7, shade(color, 0.3));
+  g.addColorStop(1, shade(color, -0.05));
+  return g;
+}
+
+// 🛹 רמפת עץ בתלת-ממד: משטח משופע מואר, צד משולש בצל ופס מתכת בקצה
+function drawRamp(o) {
+  const x = o.x, G = GROUND_Y, d = DEPTH, up = DEPTH * 0.6;
+  drawShadow(x + o.w * 0.6, o.w * 1.1, 0.2);
+
+  // המשטח המשופע — מואר, כי הוא פונה לשמיים
+  ctx.fillStyle = shade(RAMP_COLOR, 0.18);
+  ctx.beginPath();
+  ctx.moveTo(x, G); ctx.lineTo(x + o.w, G - o.h);
+  ctx.lineTo(x + o.w - d, G - o.h - up); ctx.lineTo(x - d, G - up);
+  ctx.closePath(); ctx.fill();
+  // הקווים בין הלוחות של העץ
+  ctx.strokeStyle = "rgba(0, 0, 0, 0.15)";
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < 4; i++) {
+    const px = x + o.w * i / 4, py = G - o.h * i / 4;
+    ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - d, py - up); ctx.stroke();
+  }
+
+  // הצד המשולש — בצל
+  const side = ctx.createLinearGradient(x, 0, x + o.w, 0);
+  side.addColorStop(0, shade(RAMP_COLOR, -0.3));
+  side.addColorStop(1, shade(RAMP_COLOR, -0.1));
+  ctx.fillStyle = side;
+  ctx.beginPath();
+  ctx.moveTo(x, G); ctx.lineTo(x + o.w, G); ctx.lineTo(x + o.w, G - o.h);
+  ctx.closePath(); ctx.fill();
+  // קורות עץ שמחזיקות את הרמפה
+  ctx.strokeStyle = shade(RAMP_COLOR, -0.45);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(x + o.w * 0.5, G); ctx.lineTo(x + o.w * 0.5, G - o.h * 0.5);
+  ctx.moveTo(x + o.w * 0.5, G); ctx.lineTo(x + o.w - 2, G - o.h + 3);
+  ctx.stroke();
+
+  // פס מתכת בקצה העליון — משם עפים!
+  ctx.strokeStyle = "#cfd8dc";
+  ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(x + o.w, G - o.h); ctx.lineTo(x + o.w - d, G - o.h - up); ctx.stroke();
+}
+
+function drawObstacle(o) {
+  const x = o.x, base = GROUND_Y, top = GROUND_Y - o.h;
+
+  if (o.type === "ramp") {
+    drawRamp(o);
+
+  } else if (o.type === "cone") {
+    // קונוס: כתום עם פס לבן, ובסיס מרובע שרואים לו גם את החלק העליון
+    drawShadow(x + o.w / 2, o.w * 1.4, 0.25);
+    ctx.fillStyle = "#ffab40";                       // החלק העליון של הבסיס
+    ctx.beginPath();
+    ctx.moveTo(x - 3, base - 5); ctx.lineTo(x + o.w + 3, base - 5);
+    ctx.lineTo(x + o.w, base - 8); ctx.lineTo(x, base - 8);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#bf360c";                       // החזית של הבסיס
+    ctx.fillRect(x - 3, base - 5, o.w + 6, 5);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(x + 3, base - 7);
+    ctx.lineTo(x + o.w - 3, base - 7);
+    ctx.lineTo(x + o.w / 2, top);
+    ctx.closePath();
+    ctx.fillStyle = cylinder(x + 3, x + o.w - 3, "#ff9100");
+    ctx.fill();
+    ctx.clip();                         // הפס הלבן נצבע רק בתוך הקונוס
+    ctx.fillStyle = cylinder(x + 3, x + o.w - 3, "#f5f5f5");
+    ctx.fillRect(x, top + o.h * 0.4, o.w, 7);
+    ctx.restore();
+
+  } else if (o.type === "trashcan") {
+    // פח זבל: גליל ירוק עם פסים, ומכסה עגול
+    drawShadow(x + o.w / 2, o.w * 1.4, 0.28);
+    ctx.fillStyle = cylinder(x + 2, x + o.w - 2, "#43a047");
+    ctx.fillRect(x + 2, top + 8, o.w - 4, o.h - 8);
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.2)";
+    ctx.lineWidth = 2;
+    for (let lx = x + 9; lx < x + o.w - 4; lx += 8) {
+      ctx.beginPath(); ctx.moveTo(lx, top + 13); ctx.lineTo(lx, base - 4); ctx.stroke();
+    }
+    ctx.fillStyle = cylinder(x, x + o.w, "#2e7d32");          // השפה של המכסה
+    ctx.fillRect(x, top + 3, o.w, 6);
+    ctx.fillStyle = shade("#2e7d32", 0.3);                    // המכסה מלמעלה (עיגול שטוח)
+    ctx.beginPath(); ctx.ellipse(x + o.w / 2, top + 3, o.w / 2, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1b5e20";                                // הידית
+    ctx.fillRect(x + o.w / 2 - 5, top - 3, 10, 3);
+
+  } else if (o.type === "hydrant") {
+    // ברז כיבוי אש: גליל אדום, כיפה עגולה וזרועות בצדדים
+    const red = "#d32f2f";
+    drawShadow(x + o.w / 2, o.w * 1.5, 0.25);
+    ctx.fillStyle = cylinder(x + 1, x + o.w - 1, red);
+    ctx.fillRect(x + 1, base - 5, o.w - 2, 5);                // בסיס
+    ctx.fillStyle = cylinder(x + 5, x + o.w - 5, red);
+    ctx.fillRect(x + 5, top + 10, o.w - 10, o.h - 14);        // גוף
+    ctx.fillStyle = cylinder(x, x + o.w, red);
+    ctx.fillRect(x, top + 16, o.w, 7);                        // הזרועות
+    ctx.fillStyle = "#8e0000";                                // הפקקים בקצוות
+    ctx.beginPath(); ctx.arc(x + 1, top + 19.5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + o.w - 1, top + 19.5, 3, 0, Math.PI * 2); ctx.fill();
+    const dome = ctx.createRadialGradient(x + o.w / 2 + 3, top + 5, 1, x + o.w / 2, top + 11, o.w / 2 - 5);
+    dome.addColorStop(0, shade(red, 0.55));
+    dome.addColorStop(1, shade(red, -0.25));
+    ctx.fillStyle = dome;
+    ctx.beginPath();
+    ctx.arc(x + o.w / 2, top + 11, o.w / 2 - 5, Math.PI, 0);   // כיפה
+    ctx.fill();
+    ctx.fillStyle = "#b71c1c";
+    ctx.fillRect(x + o.w / 2 - 2, top, 4, 4);                 // הבורג למעלה
+  }
+}
+
+// מטבע זהב שמסתובב: כשהוא "מסתובב" הוא נהיה צר, ורואים את העובי שלו
+function drawCoin(c, now) {
+  const r = 11;
+  drawShadow(c.x, 14, 0.12);                        // צל קטן על המדרכה — ככה רואים שהוא מרחף
+  const turn = Math.abs(Math.cos(now / 220 + c.spin));
+  const width = Math.max(2, turn * r);
+  const edge = (1 - turn) * 3 + 1;                  // העובי של המטבע
+  ctx.fillStyle = "#e65100";
+  ctx.beginPath(); ctx.ellipse(c.x - edge, c.y, width, r, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#ff8f00";                        // השפה של המטבע
+  ctx.beginPath(); ctx.ellipse(c.x, c.y, width, r, 0, 0, Math.PI * 2); ctx.fill();
+  const face = ctx.createLinearGradient(c.x + width, c.y - r, c.x - width, c.y + r);
+  face.addColorStop(0, shade(COIN_COLOR, 0.55));   // מואר מלמעלה מימין
+  face.addColorStop(1, shade(COIN_COLOR, -0.15));
+  ctx.fillStyle = face;                             // הפנים הזהובות
+  ctx.beginPath(); ctx.ellipse(c.x, c.y, Math.max(1, width - 2.5), r - 2.5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.75)";      // ברק קטן
+  ctx.beginPath(); ctx.ellipse(c.x + width * 0.3, c.y - 4, Math.max(0.5, width * 0.2), 3, 0, 0, Math.PI * 2); ctx.fill();
+}
+
+// מלבן עם פינות מעוגלות
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawRobot(now) {
+  const x = robot.x, y = robot.y;
+
+  // צל על המדרכה — קטן יותר כשהרובוט גבוה באוויר
+  const height = GROUND_Y - y;
+  const shadow = Math.max(0.3, 1 - height / 200);
+  drawShadow(x, 72 * shadow, 0.25 * shadow);
+
+  ctx.save();
+  // באוויר הסקייטבורד נוטה: האף למעלה כשעולים, למטה כשיורדים
+  let tilt = robot.onGround ? 0 : Math.max(-0.35, Math.min(0.35, robot.vy * 0.025));
+  if (robot.onRamp) tilt = -Math.atan2(robot.onRamp.h, robot.onRamp.w);   // על הרמפה — נוטה כמו המדרון
+  if (robot.crashed) tilt = 0.45;
+  ctx.translate(x, y - 12);
+  ctx.rotate(tilt);
+  ctx.translate(-x, -(y - 12));
+
+  // סלטה: מסובבים את כל הרובוט סביב האמצע של הגוף שלו.
+  // המחשב סופר סיבובים ב"רדיאנים" ולא במעלות, אז ממירים: 180 מעלות = π (פאי)
+  if (robot.flipping) {
+    ctx.translate(x, y - 50);
+    ctx.rotate(-robot.flipAngle * Math.PI / 180);   // מינוס = סלטה אחורה
+    ctx.translate(-x, -(y - 50));
+  }
+
+  // --- גלגלים (מסתובבים!) — בהירים בצד של השמש, כהים בצד השני ---
+  for (const wx of [x - 20, x + 20]) {
+    const wg = ctx.createRadialGradient(wx + 2, y - 8, 1, wx, y - 6, 6);
+    wg.addColorStop(0, shade(WHEEL_COLOR, 0.6));
+    wg.addColorStop(1, shade(WHEEL_COLOR, -0.3));
+    ctx.fillStyle = wg;
+    ctx.beginPath(); ctx.arc(wx, y - 6, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#795548";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(wx - Math.cos(robot.wheelAngle) * 5, y - 6 - Math.sin(robot.wheelAngle) * 5);
+    ctx.lineTo(wx + Math.cos(robot.wheelAngle) * 5, y - 6 + Math.sin(robot.wheelAngle) * 5);
+    ctx.stroke();
+  }
+
+  // --- הסקייטבורד: קרש עם קצוות מורמים ---
+  // מציירים אותו פעמיים: פעם כהה וקצת למטה (העובי של הקרש), ופעם רגיל מעליו
+  function deckPath(dy) {
+    ctx.beginPath();
+    ctx.moveTo(x - 36, y - 21 + dy);
+    ctx.quadraticCurveTo(x - 32, y - 13 + dy, x - 24, y - 13 + dy);
+    ctx.lineTo(x + 24, y - 13 + dy);
+    ctx.quadraticCurveTo(x + 32, y - 13 + dy, x + 36, y - 21 + dy);
+  }
+  ctx.lineCap = "round";
+  ctx.lineWidth = 6;
+  ctx.strokeStyle = shade(BOARD_COLOR, -0.4);
+  deckPath(3); ctx.stroke();
+  ctx.strokeStyle = BOARD_COLOR;
+  deckPath(0); ctx.stroke();
+  ctx.strokeStyle = shade(BOARD_COLOR, 0.45);     // פס אור דק על הקרש
+  ctx.lineWidth = 1.5;
+  deckPath(-2); ctx.stroke();
+
+  // צבע של מתכת: כהה משמאל ומבריק מימין (השמש מימין)
+  function metal(left, right, color) {
+    const m = ctx.createLinearGradient(left, 0, right, 0);
+    m.addColorStop(0, shade(color, -0.3));
+    m.addColorStop(0.65, shade(color, 0.4));
+    m.addColorStop(1, shade(color, 0.05));
+    return m;
+  }
+
+  // --- רגליים וכפות רגליים ---
+  ctx.fillStyle = metal(x - 12, x - 4, ROBOT_DARK_COLOR);
+  ctx.fillRect(x - 12, y - 34, 8, 18);
+  ctx.fillStyle = metal(x + 4, x + 12, ROBOT_DARK_COLOR);
+  ctx.fillRect(x + 4, y - 34, 8, 18);
+  ctx.fillStyle = "#546e7a";
+  ctx.fillRect(x - 15, y - 20, 13, 4);
+  ctx.fillRect(x + 2, y - 20, 13, 4);
+
+  // --- ידיים: לצדדים לשיווי משקל, ולמעלה כשקופצים ---
+  const armsUp = !robot.onGround || robot.crashed;
+  const handY = armsUp ? y - 76 : y - 48;
+  ctx.strokeStyle = ROBOT_DARK_COLOR;
+  ctx.lineWidth = 6;
+  ctx.beginPath(); ctx.moveTo(x - 16, y - 55); ctx.lineTo(x - 33, handY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 16, y - 55); ctx.lineTo(x + 33, handY); ctx.stroke();
+  ctx.fillStyle = "#546e7a";
+  ctx.beginPath(); ctx.arc(x - 33, handY, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(x + 33, handY, 4.5, 0, Math.PI * 2); ctx.fill();
+
+  // --- גוף מתכת מבריק, עם לוח קטן ושלוש נורות ---
+  ctx.fillStyle = metal(x - 18, x + 18, ROBOT_COLOR);
+  roundRect(x - 18, y - 62, 36, 30, 6);
+  ctx.fill();
+  ctx.strokeStyle = ROBOT_DARK_COLOR;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";     // הברק של המתכת
+  roundRect(x + 10, y - 59, 3, 22, 1.5);
+  ctx.fill();
+  ctx.fillStyle = "#eceff1";
+  ctx.fillRect(x - 11, y - 55, 22, 12);
+  const lights = ["#ff1744", "#ffea00", "#00e676"];
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = lights[i];
+    ctx.beginPath(); ctx.arc(x - 6 + i * 6, y - 49, 2.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // --- צוואר וראש ---
+  ctx.fillStyle = ROBOT_DARK_COLOR;
+  ctx.fillRect(x - 4, y - 67, 8, 6);
+  ctx.fillStyle = metal(x - 16, x + 16, ROBOT_COLOR);
+  roundRect(x - 16, y - 90, 32, 24, 6);
+  ctx.fill();
+  ctx.strokeStyle = ROBOT_DARK_COLOR;
+  ctx.stroke();
+
+  // --- המשקף והעיניים ---
+  const visor = ctx.createLinearGradient(0, y - 85, 0, y - 74);
+  visor.addColorStop(0, "#455a64");
+  visor.addColorStop(1, "#102027");
+  ctx.fillStyle = visor;
+  roundRect(x - 12, y - 85, 24, 11, 4);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.35)";  // השתקפות קטנה בזכוכית
+  ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(x + 3, y - 84); ctx.lineTo(x + 9, y - 84); ctx.stroke();
+  if (robot.crashed) {
+    // עיניים של X כשנתקעים
+    ctx.strokeStyle = "#ff1744";
+    ctx.lineWidth = 2;
+    for (const ex of [x - 5, x + 6]) {
+      ctx.beginPath();
+      ctx.moveTo(ex - 3, y - 82); ctx.lineTo(ex + 3, y - 77);
+      ctx.moveTo(ex + 3, y - 82); ctx.lineTo(ex - 3, y - 77);
+      ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = ROBOT_EYES_COLOR;
+    ctx.shadowColor = ROBOT_EYES_COLOR;           // העיניים זוהרות
+    ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.arc(x - 5, y - 79.5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 6, y - 79.5, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+  // חיוך קטן (או פה עצוב כשנתקעים)
+  ctx.strokeStyle = "#455a64";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (robot.crashed) ctx.arc(x, y - 66, 4, 1.15 * Math.PI, 1.85 * Math.PI);
+  else ctx.arc(x, y - 73, 4, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+
+  // --- אנטנה עם נורה מהבהבת ---
+  ctx.strokeStyle = ROBOT_DARK_COLOR;
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(x, y - 90); ctx.lineTo(x, y - 99); ctx.stroke();
+  const blink = Math.floor(now / 400) % 2 === 0;
+  ctx.fillStyle = blink ? ANTENNA_LIGHT_COLOR : "#ff8a80";
+  ctx.beginPath(); ctx.arc(x, y - 102, 4, 0, Math.PI * 2); ctx.fill();
+
+  ctx.restore();
+}
+
+function drawPopups() {
+  ctx.font = "bold 24px 'Segoe UI', Arial";
+  ctx.textAlign = "center";
+  for (const p of popups) {
+    ctx.direction = p.dir;
+    ctx.globalAlpha = Math.max(0, p.life);   // הכיתוב נהיה שקוף לאט לאט
+    ctx.fillStyle = p.color;
+    ctx.fillText(p.text, p.x, p.y);
+  }
+  ctx.globalAlpha = 1;
+  ctx.direction = "inherit";
+}
+
+// ------------------------------------------------------------
+//  🔁 לולאת המשחק: רצה שוב ושוב, בערך 60 פעמים בשנייה
+// ------------------------------------------------------------
+let lastTime = performance.now();
+function loop(now) {
+  // dt = כמה זמן עבר מאז הפעם הקודמת (1 = רגע רגיל), כדי שהמשחק ירוץ
+  // באותה מהירות בכל מחשב — גם במסך מהיר וגם במסך איטי
+  let dt = (now - lastTime) / 16.667;
+  lastTime = now;
+  if (dt > 3) dt = 3;     // אם הלשונית הייתה ברקע — לא קופצים קדימה בבת אחת
+
+  if (state === "playing") update(dt);
+  draw(now);
+  requestAnimationFrame(loop);
+}
+
+updateScoreboard();
+showStartScreen();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
