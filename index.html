@@ -474,6 +474,59 @@ const SIDEWALK_COLOR = "#cfd8dc";       // המדרכה שהרובוט נוסע 
 const ROAD_COLOR = "#455a64";           // הכביש
 const FAR_CITY_COLOR = "#a7c4dc";       // הבניינים הרחוקים מאחור (מעורפלים, כמו באמת)
 
+// --- 🌍 עולמות (רעיון של עומר, 24.10.2026) ---
+// כל WORLD_POINTS נקודות עוברים לעולם הבא, ואחרי האחרון חוזרים לעיר.
+// כל שורה בטבלה = עולם אחד. GRAVITY = כוח המשיכה שם (1 = רגיל, 0.6 = קופצים הרבה יותר גבוה!)
+// SNOW = יורד שלג · SPACE = חלל: כוכבים כל הזמן, כוכב לכת במקום שמש, ובלי עננים
+// OBSTACLES = המכשולים של העולם: name = איזה ציור, w / h = הרוחב והגובה של הקופסה שאסור לגעת בה
+//   (מכשול עם icon מצויר מסמל — אפשר להחליף אותו בכל סמל אחר!)
+// DECOR = הקישוטים שטסים בשמיים · SEA = קישוטים שצפים בים (רק בחוף)
+const WORLD_POINTS = 100;
+const DECOR_CHANCE = 0.006;   // כמה פעמים מופיע קישוט חדש בשמיים (0 = אף פעם, 0.02 = המון)
+const WORLDS = [
+  { NAME: "העיר",        ICON: "🏙️", SKY_TOP: SKY_TOP_COLOR, SKY_BOTTOM: SKY_BOTTOM_COLOR,
+    GROUND: SIDEWALK_COLOR, ROAD: ROAD_COLOR, FAR: FAR_CITY_COLOR, BUILDINGS: BUILDING_COLORS, GRAVITY: 1,
+    OBSTACLES: [
+      { name: "cone",     w: 28, h: 38 },   // קונוס כתום
+      { name: "trashcan", w: 34, h: 50 },   // פח זבל ירוק
+      { name: "hydrant",  w: 26, h: 36 },   // ברז כיבוי אש אדום
+      { name: "icon", icon: "📦", w: 34, h: 32 },   // קרטון
+      { name: "icon", icon: "🛒", w: 38, h: 36 }    // עגלת סופר
+    ],
+    DECOR: ["✈️", "🎈", "🐦", "🎈"] },
+  { NAME: "חוף הים",     ICON: "🏖️", SKY_TOP: "#29b6f6", SKY_BOTTOM: "#fff3e0",
+    GROUND: "#ffe0b2", ROAD: "#0288d1", FAR: "#b3e5fc",
+    BUILDINGS: ["#ffffff", "#fff59d", "#80deea", "#ffab91", "#f8bbd0"], GRAVITY: 1,
+    OBSTACLES: [
+      { name: "icon", icon: "🏰", w: 40, h: 42 },   // ארמון חול
+      { name: "icon", icon: "🦀", w: 36, h: 28, hop: true },   // סרטן שקופץ קצת
+      { name: "icon", icon: "⛱️", w: 36, h: 50 },   // שמשייה
+      { name: "icon", icon: "🐚", w: 30, h: 26 }    // צדף
+    ],
+    DECOR: ["🐦", "🐦", "🎈", "✈️"], SEA: ["⛵", "🐬", "⛵"] },
+  { NAME: "העיר המושלגת", ICON: "❄️", SKY_TOP: "#90a4ae", SKY_BOTTOM: "#eceff1",
+    GROUND: "#ffffff", ROAD: "#78909c", FAR: "#cfd8dc",
+    BUILDINGS: ["#8d6e63", "#a1887f", "#90a4ae", "#b0bec5", "#e57373"], GRAVITY: 1, SNOW: true,
+    OBSTACLES: [
+      { name: "icon", icon: "⛄", w: 36, h: 50 },   // איש שלג
+      { name: "icon", icon: "🌲", w: 36, h: 50 },   // עץ אורן
+      { name: "icon", icon: "🎁", w: 32, h: 32 },   // מתנה
+      { name: "icon", icon: "🐧", w: 30, h: 38, hop: true }    // פינגווין שקופץ
+    ],
+    DECOR: ["🎅", "🦉", "❄️", "🐦"] },
+  { NAME: "החלל",        ICON: "🚀", SKY_TOP: "#05021a", SKY_BOTTOM: "#311b92",
+    GROUND: "#b0b0b0", ROAD: "#3a3a4a", FAR: "#4a3f8f",
+    BUILDINGS: ["#5c6bc0", "#7e57c2", "#26a69a", "#78909c"], GRAVITY: 0.6, SPACE: true,
+    OBSTACLES: [
+      { name: "icon", icon: "👽", w: 32, h: 38, hop: true },   // חייזר שקופץ
+      { name: "icon", icon: "☄️", w: 38, h: 36 },   // מטאוריט
+      { name: "icon", icon: "👾", w: 36, h: 34, hop: true },   // מפלצת חלל
+      { name: "icon", icon: "🗿", w: 30, h: 48 }    // פסל חייזרים מסתורי
+    ],
+    DECOR: ["🚀", "🛸", "🛰️", "☄️", "🌙", "⭐"] }
+];
+const FLIP_ICONS = ["✈️", "🚀"];   // סמלים שמסתכלים ימינה — הופכים אותם, כדי שיטוסו קדימה (שמאלה)
+
 // --- תלת-ממד 🧊 (רעיון של עומר) ---
 const DEPTH = 16;             // כמה עמוקים הבניינים (0 = שטוחים כמו דף, 30 = עבים מאוד)
 const SHADOWS = true;         // צללים על המדרכה (false = בלי צללים)
@@ -553,6 +606,11 @@ let popups = [];            // ה-"+1" הקטנים שעפים למעלה כשע
 let roadOffset = 0;         // כמה הרחוב כבר זז (בשביל הפסים על הכביש)
 let jumpBuffer = 0;         // אם לחצו "קפוץ" רגע לפני הנחיתה — נקפוץ מיד כשנוחתים
 let overTime = 0;           // מתי נתקענו (כדי לא להתחיל מחדש בטעות)
+let worldIndex = 0;         // 🌍 באיזה עולם אנחנו עכשיו (מקום בטבלה WORLDS — סופרים מ-0!)
+let prevWorldIndex = 0;     // 🌍 העולם הקודם — בשביל מעבר רך של הצבעים
+let worldFade = 1;          // 🌍 כמה התקדם המעבר: 0 = עוד בעולם הקודם, 1 = כבר בעולם החדש
+let flakes = [];            // ❄️ פתיתי השלג
+let decor = [];             // ✈️ הקישוטים שטסים בשמיים (ושטים בים)
 let dayClock = 0;           // 🌙 השעון של העיר: 0 = בוקר · 0.45 = שקיעה · 0.7 = לילה · 0.94 = זריחה
 let powerups = [];          // ⚡ בועות הכוח שמרחפות עכשיו באוויר
 let magnetTime = 0;         // 🧲 טיימר: כמה זמן נשאר למגנט (0 = כבוי)
@@ -640,6 +698,9 @@ function rgbText(c, alpha) {
   return "rgba(" + Math.round(c[0]) + "," + Math.round(c[1]) + "," + Math.round(c[2]) + "," +
          (alpha === undefined ? 1 : alpha) + ")";
 }
+function rgbToHex(c) {            // [255, 128, 0] ⇐ "#ff8000"
+  return "#" + c.map(v => Math.round(v).toString(16).padStart(2, "0")).join("");
+}
 
 // צל על המדרכה. השמש למעלה מימין, אז הצל נופל קצת שמאלה
 function drawShadow(cx, width, strength) {
@@ -658,14 +719,95 @@ let farBuildings = [];   // הבניינים הרחוקים מאחור (מעור
 let clouds = [];
 let stars = [];          // 🌙 הכוכבים של הלילה (מופיעים רק כשמחשיך)
 
+// 🌍 העולם שאנחנו בו עכשיו (שורה מהטבלה WORLDS)
+function world() {
+  return WORLDS[worldIndex];
+}
+// 🌍 כוח המשיכה עכשיו: הרגיל, כפול הכוח של העולם (בחלל — חלש יותר)
+function gravity() {
+  return GRAVITY * world().GRAVITY;
+}
+// בוחרים דבר אחד באקראי מתוך רשימה
+function pick(list) {
+  return list[Math.floor(Math.random() * list.length)];
+}
+// 🌍 צבע באמצע המעבר בין העולם הקודם לחדש (key = איזה צבע: SKY_TOP, GROUND...)
+function worldColor(key) {
+  return mixColor(hexToRgb(WORLDS[prevWorldIndex][key]), hexToRgb(world()[key]), worldFade);
+}
+
+// 🌍 עברנו עוד WORLD_POINTS נקודות? עוברים לעולם הבא!
+function checkWorld(dt) {
+  if (worldFade < 1) worldFade = Math.min(1, worldFade + dt / 120);   // המעבר לוקח בערך 2 שניות
+  const next = Math.floor(score / WORLD_POINTS) % WORLDS.length;
+  if (next === worldIndex) return;
+  prevWorldIndex = worldIndex;
+  worldIndex = next;
+  worldFade = 0;
+  addPopup(world().ICON + " עולם חדש: " + world().NAME + "!", "rtl", "#00897b", 0, W / 2, 70, 0.006);
+  if (world().SPACE) addPopup("🚀 כוח משיכה חלש — קופצים עד השמיים!", "rtl", "#5e35b1", 0, W / 2, 105, 0.006);
+  soundPoof();
+}
+
+// ❄️ השלג: פתיתים חדשים נופלים מלמעלה, וזזים קצת עם הרוח
+function updateSnow(dt) {
+  if (world().SNOW && worldFade > 0.3 && Math.random() < 0.5 * dt) {
+    flakes.push({ x: rand(0, W + 100), y: -5, vy: rand(0.8, 1.8), r: rand(1.5, 3.2), sway: rand(0, 6.28) });
+  }
+  for (const f of flakes) {
+    f.y += f.vy * dt;
+    f.x -= (speed * 0.3 + 0.4) * dt;
+    f.sway += 0.05 * dt;
+  }
+  flakes = flakes.filter(f => f.y < GROUND_Y + 10 && f.x > -10);
+}
+
+// ✈️ הקישוטים: מדי פעם מופיע אחד חדש מימין, וטס לאט שמאלה (הם רחוקים — אז הם זזים לאט)
+function updateDecor(dt) {
+  const w = world();
+  if (w.DECOR && Math.random() < DECOR_CHANCE * dt) {
+    decor.push({ icon: pick(w.DECOR), sea: false, x: W + 30, y: rand(30, 170), size: rand(22, 34),
+                 vx: rand(0.3, 1.2), wave: rand(0, 6.28) });
+  }
+  if (w.SEA && Math.random() < DECOR_CHANCE * 0.6 * dt) {
+    decor.push({ icon: pick(w.SEA), sea: true, x: W + 30, y: GROUND_Y + 44, size: rand(20, 24),
+                 vx: rand(0.1, 0.5), wave: rand(0, 6.28) });
+  }
+  for (const d of decor) {
+    d.x -= (speed * (d.sea ? 0.6 : 0.25) + d.vx) * dt;
+    d.wave += 0.05 * dt;
+  }
+  decor = decor.filter(d => d.x > -60);
+}
+// מציירים את הקישוטים: sea = false ⇐ אלה שבשמיים, sea = true ⇐ אלה שבים
+function drawDecor(sea) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.direction = "ltr";
+  ctx.fillStyle = "#000";              // צבע מלא — כדי שהסמלים לא ייצאו שקופים
+  for (const d of decor) {
+    if (d.sea !== sea) continue;
+    ctx.font = Math.round(d.size) + "px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+    const y = d.y + Math.sin(d.wave) * (sea ? 2 : 5);    // מתנדנדים קצת למעלה ולמטה
+    ctx.save();
+    ctx.translate(d.x, y);
+    if (FLIP_ICONS.includes(d.icon)) ctx.scale(-1, 1);  // ✈️🚀 הופכים — שיטוסו שמאלה
+    ctx.fillText(d.icon, 0, 0);
+    ctx.restore();
+  }
+  ctx.textBaseline = "alphabetic";
+  ctx.direction = "inherit";
+}
+
 function makeBuilding(x) {
   return {
     x: x,
     w: rand(60, 120),
     h: rand(90, 230),
-    color: BUILDING_COLORS[Math.floor(Math.random() * BUILDING_COLORS.length)],
+    color: pick(world().BUILDINGS),     // 🌍 הצבעים של העולם שאנחנו בו
     seed: Math.floor(rand(0, 100)),     // בשביל לבחור אילו חלונות מבריקים
-    solar: Math.random() < 0.5          // האם יש על הגג דוד שמש? ☀️
+    solar: Math.random() < 0.5,         // האם יש על הגג דוד שמש? ☀️
+    snow: !!world().SNOW                // ❄️ בעיר המושלגת — שלג על הגג
   };
 }
 
@@ -674,7 +816,7 @@ function makeFarBuilding(x) {
     x: x,
     w: rand(40, 90),
     h: rand(150, 270),
-    color: shade(FAR_CITY_COLOR, rand(-0.1, 0.1)),
+    color: shade(world().FAR, rand(-0.1, 0.1)),
     seed: Math.floor(rand(0, 100))      // בשביל לבחור אילו חלונות דולקים בלילה
   };
 }
@@ -726,6 +868,16 @@ function startGame() {
   sparkles = [];
   popups = [];
   dayClock = 0;              // כל משחק מתחיל בבוקר ☀️
+  // 🌍 כל משחק מתחיל בעיר. אם המשחק הקודם נגמר בעולם אחר — צובעים את הבניינים בחזרה
+  if (worldIndex !== 0) {
+    worldIndex = 0;
+    for (const b of buildings) { b.color = makeBuilding(0).color; b.snow = false; }
+    for (const b of farBuildings) b.color = makeFarBuilding(0).color;
+  }
+  prevWorldIndex = 0;
+  worldFade = 1;
+  flakes = [];
+  decor = [];
   powerups = [];
   magnetTime = 0;
   doubleTime = 0;
@@ -1612,6 +1764,9 @@ function update(dt) {
 
   // 🌙 השעון של העיר מתקדם: בוקר ⇐ שקיעה ⇐ לילה ⇐ זריחה ⇐ ושוב בוקר
   dayClock = (dayClock + dt / (Math.max(5, DAY_NIGHT_SECONDS) * 60)) % 1;
+  checkWorld(dt);           // 🌍 הגענו לעולם חדש?
+  updateSnow(dt);           // ❄️
+  updateDecor(dt);          // ✈️
 
   // ⚡ הטיימרים של כוחות-העל סופרים אחורה. כשמגיעים לאפס — הכוח נגמר
   if (magnetTime > 0) magnetTime = Math.max(0, magnetTime - dt);
@@ -1634,7 +1789,7 @@ function update(dt) {
 
   // 4. הקפיצה וכוח המשיכה
   if (!robot.onGround) {
-    robot.vy += GRAVITY * dt;       // כוח המשיכה מושך למטה קצת בכל רגע
+    robot.vy += gravity() * dt;     // כוח המשיכה מושך למטה קצת בכל רגע (🌍 בחלל — פחות)
     // 🛸 הסקייטבורד המעופף: מחזיקים את הקפיצה בזמן שיורדים — ומרחפים לאט, כמו מצנח
     robot.gliding = skin.board === "hover" && jumpHeld && robot.vy > HOVER_FALL;
     if (robot.gliding) robot.vy = HOVER_FALL;
@@ -1930,7 +2085,8 @@ function rideRamp(o) {
 
 // כמה זמן הרובוט באוויר כשהרמפה מעיפה אותו
 function rampFlightTime() {
-  return (RAMP_POWER + Math.sqrt(RAMP_POWER * RAMP_POWER + 2 * GRAVITY * RAMP_H)) / GRAVITY;
+  const g = gravity();
+  return (RAMP_POWER + Math.sqrt(RAMP_POWER * RAMP_POWER + 2 * g * RAMP_H)) / g;
 }
 
 function spawnRamp() {
@@ -1941,11 +2097,12 @@ function spawnRamp() {
   nextObstacleIn = speed * gap + ramp.w;
 
   // 🪙 קשת מטבעות סודית בדיוק בגובה של המעוף — אפשר להגיע אליה רק מהרמפה!
-  const topTime = RAMP_POWER / GRAVITY;     // מתי הרובוט מגיע הכי גבוה
+  const g = gravity();
+  const topTime = RAMP_POWER / g;           // מתי הרובוט מגיע הכי גבוה
   for (let i = 0; i < COINS_IN_A_ROW; i++) {
     const fromMiddle = i - (COINS_IN_A_ROW - 1) / 2;
     const t = topTime + fromMiddle * 8;
-    const height = RAMP_H + RAMP_POWER * t - GRAVITY * t * (t + 1) / 2;
+    const height = RAMP_H + RAMP_POWER * t - g * t * (t + 1) / 2;
     coins.push({
       x: ramp.x + ramp.w + speed * t,
       y: Math.max(14, GROUND_Y - height - 30),
@@ -2013,11 +2170,12 @@ function spawnObstacle() {
   if (Math.random() < level.DRONE_CHANCE) {
     type = { name: "drone", w: DRONE_W, h: 0 };                        // 🛸 הפעם — רחפן!
   } else {
-    type = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
+    type = pick(world().OBSTACLES || OBSTACLE_TYPES);                 // 🌍 המכשולים של העולם שאנחנו בו
   }
-  obstacles.push({ type: type.name, w: type.w, h: type.h, x: W + 10, passed: false, bob: rand(0, 6.28) });
+  obstacles.push({ type: type.name, icon: type.icon, hop: type.hop,
+                   w: type.w, h: type.h, x: W + 10, passed: false, bob: rand(0, 6.28) });
   // כמה זמן הרובוט באוויר בקפיצה אחת — כדי שתמיד יהיה מספיק זמן לנחות ולקפוץ שוב
-  const airTime = 2 * JUMP_POWER / GRAVITY;
+  const airTime = 2 * JUMP_POWER / gravity();
   const minGap = Math.max(level.GAP_MIN, airTime + 10);
   const maxGap = Math.max(level.GAP_MAX, minGap + 20);
   const gap = rand(minGap, maxGap);
@@ -2113,7 +2271,8 @@ function draw(now) {
 
   // שמיים, כוכבים, שמש או ירח, ועננים
   drawSky(now, night, sunset);
-  for (const c of clouds) drawCloud(c, night, sunset);
+  if (!world().SPACE) for (const c of clouds) drawCloud(c, night, sunset);   // 🚀 בחלל אין עננים
+  drawDecor(false);                                                          // ✈️ קישוטים בשמיים
 
   // העיר — בלילה היא מחשיכה, והחלונות נדלקים
   // (את הבניינים הקרובים מציירים מימין לשמאל: ככה הבניין השמאלי מסתיר את קיר הצד של זה שמימינו)
@@ -2128,6 +2287,7 @@ function draw(now) {
   // הרחוב והמכשולים — גם הם מחשיכים בלילה
   beginLayer(night, sunset);
   drawRoad();
+  drawDecor(true);                                  // ⛵ סירות ודולפינים בים (רק בחוף)
   for (const o of obstacles) drawObstacle(o, now);
   endLayer(night, sunset);
 
@@ -2137,6 +2297,7 @@ function draw(now) {
   for (const p of powerups) drawPowerUp(p, now);
   drawRobot(now);
   drawShieldBubble(now);
+  drawSnow();
   drawSparkles();
   drawPopups();
   drawPowerHud(now);
@@ -2164,8 +2325,9 @@ function drawSparkles() {
 
 // 🌙 השמיים: מערבבים את צבעי היום, השקיעה והלילה לפי השעון של העיר
 function drawSky(now, night, sunset) {
-  let top = mixColor(hexToRgb(SKY_TOP_COLOR), hexToRgb(NIGHT_SKY_TOP_COLOR), night);
-  let bottom = mixColor(hexToRgb(SKY_BOTTOM_COLOR), hexToRgb(NIGHT_SKY_BOTTOM_COLOR), night);
+  // 🌍 הצבעים של העולם שאנחנו בו (באמצע מעבר — מערבבים את הישן והחדש)
+  let top = mixColor(worldColor("SKY_TOP"), hexToRgb(NIGHT_SKY_TOP_COLOR), night);
+  let bottom = mixColor(worldColor("SKY_BOTTOM"), hexToRgb(NIGHT_SKY_BOTTOM_COLOR), night);
   top = mixColor(top, hexToRgb(SUNSET_SKY_TOP_COLOR), sunset * 0.85);
   bottom = mixColor(bottom, hexToRgb(SUNSET_SKY_BOTTOM_COLOR), sunset * 0.85);
   const g = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
@@ -2173,15 +2335,40 @@ function drawSky(now, night, sunset) {
   g.addColorStop(1, rgbText(bottom));
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, GROUND_Y);
-  // ✨ כוכבים שמנצנצים — רק כשמחשיך
-  if (night > 0.05) {
+  // ✨ כוכבים שמנצנצים — רק כשמחשיך (🚀 ובחלל — כל הזמן)
+  const space = world().SPACE ? worldFade : WORLDS[prevWorldIndex].SPACE ? 1 - worldFade : 0;
+  const starLight = Math.max(night, space);
+  if (starLight > 0.05) {
     for (const s of stars) {
-      ctx.fillStyle = "rgba(255, 255, 255, " + night * (0.55 + 0.45 * Math.sin(now / 400 + s.phase)) + ")";
+      ctx.fillStyle = "rgba(255, 255, 255, " + starLight * (0.55 + 0.45 * Math.sin(now / 400 + s.phase)) + ")";
       ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
     }
   }
+  if (space > 0.5) { drawPlanet(); return; }   // 🪐 בחלל אין שמש וירח — יש כוכב לכת
   drawSun(1 - night, sunset);
   if (night > 0.05) drawMoon(night);
+}
+
+// 🪐 כוכב לכת עם טבעת — במקום השמש, כשאנחנו בחלל
+function drawPlanet() {
+  const px = 690, py = 75;
+  ctx.strokeStyle = "rgba(255, 224, 178, 0.8)";        // החצי האחורי של הטבעת
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.ellipse(px, py, 52, 13, -0.3, Math.PI, Math.PI * 2); ctx.stroke();
+  const g = ctx.createRadialGradient(px + 10, py - 10, 4, px, py, 32);
+  g.addColorStop(0, "#ffcc80"); g.addColorStop(1, "#e65100");
+  ctx.fillStyle = g;                                   // הכוכב עצמו
+  ctx.beginPath(); ctx.arc(px, py, 30, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(255, 224, 178, 0.95)";       // החצי הקדמי של הטבעת — מעל הכוכב
+  ctx.beginPath(); ctx.ellipse(px, py, 52, 13, -0.3, 0, Math.PI); ctx.stroke();
+}
+
+// ❄️ פתיתי השלג — מתנדנדים קצת ימינה ושמאלה בזמן שהם נופלים
+function drawSnow() {
+  ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
+  for (const f of flakes) {
+    ctx.beginPath(); ctx.arc(f.x + Math.sin(f.sway) * 3, f.y, f.r, 0, Math.PI * 2); ctx.fill();
+  }
 }
 
 // השמש — בשקיעה היא נהיית כתומה. alpha = כמה רואים אותה (0 = בכלל לא)
@@ -2303,8 +2490,16 @@ function drawBuilding(b) {
   ctx.lineTo(b.x + b.w - d, top - up); ctx.lineTo(b.x - d, top - up);
   ctx.closePath(); ctx.fill();
 
+  // ❄️ שלג על הגג — שכבה לבנה ועבה שגולשת קצת מעבר לקצה
+  if (b.snow) {
+    ctx.fillStyle = "#ffffff";
+    ctx.beginPath();
+    ctx.moveTo(b.x - 2, top + 4); ctx.lineTo(b.x + b.w + 2, top + 4);
+    ctx.lineTo(b.x + b.w - d, top - up - 3); ctx.lineTo(b.x - d - 2, top - up - 3);
+    ctx.closePath(); ctx.fill();
+  }
   // דוד שמש על הגג ☀️ (כמו על הגגות בישראל)
-  if (b.solar && d > 0) {
+  if (b.solar && d > 0 && !b.snow) {
     const sx = b.x + b.w * 0.45, sy = top - up * 0.5;
     ctx.fillStyle = "#1a237e";                       // הקולט — לוח כחול כהה
     ctx.beginPath();
@@ -2341,6 +2536,9 @@ function drawBuilding(b) {
 
 function drawRoad() {
   const top = GROUND_Y - 6;   // החלק העליון של המדרכה (רואים אותו קצת מלמעלה)
+  // 🌍 המדרכה והכביש בצבעים של העולם: בחוף — חול וים, בשלג — לבן, בחלל — אבק ירח
+  const SIDEWALK_COLOR = rgbToHex(worldColor("GROUND"));
+  const ROAD_COLOR = rgbToHex(worldColor("ROAD"));
 
   // המדרכה — כהה יותר בצד הרחוק, בהירה יותר בצד הקרוב
   const g = ctx.createLinearGradient(0, top, 0, GROUND_Y + 14);
@@ -2603,6 +2801,19 @@ function drawObstacle(o, now) {
 
   if (o.type === "drone") {
     drawDrone(o, now);
+
+  } else if (o.type === "icon") {
+    // 🌍 מכשול מסמל: הסמל קצת יותר גדול מהקופסה שאסור לגעת בה — ככה זה הוגן
+    drawShadow(x + o.w / 2, o.w * 1.3, 0.25);
+    const hop = o.hop ? Math.abs(Math.sin(now / 180 + o.bob)) * 6 : 0;   // מכשולים חיים קופצים קצת
+    ctx.font = Math.round(o.h * 1.15) + "px 'Segoe UI Emoji', 'Apple Color Emoji', 'Noto Color Emoji', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "bottom";
+    ctx.direction = "ltr";
+    ctx.fillStyle = "#000";            // צבע מלא — אחרת הסמל יוצא שקוף כמו הצל
+    ctx.fillText(o.icon, x + o.w / 2, base + o.h * 0.12 - hop);
+    ctx.textBaseline = "alphabetic";
+    ctx.direction = "inherit";
 
   } else if (o.type === "ramp") {
     drawRamp(o);
