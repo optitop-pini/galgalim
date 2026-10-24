@@ -29,7 +29,7 @@
   - 🛒 חנות (רעיון של עומר): המטבעות נכנסים לקופה 💰, ובחנות קונים צבע לרובוט, סקייטבורד להבות
     או קשת, וכובע — מצחייה, פיראט או כתר 👑. בפעם הראשונה יש מתנת פתיחה!
   - 👤 שמות (רעיון של עומר): כותבים שם לפני שמשחקים, ולכל שם יש קופה, בגדים ושיאים משלו.
-    ♾️ קוד צ׳יט: מי שכותב "עומר" מקבל כסף בלי סוף! (השמות האלה ב-RICH_NAMES)
+    ♾️ קוד צ׳יט: מי שכותב "עומר 24788" מקבל כסף בלי סוף! (השמות האלה ב-RICH_NAMES)
     👻 והוא יכול גם להדליק "רובוט רפאים" שעובר דרך הכול (עם שיא נפרד, וכפתור "לסיים").
   - ❤️ שלוש נשמות לכולם (רעיון של עומר): נתקעים — מאבדים לב וממשיכים. נגמרו הלבבות — המשחק נגמר.
   - 🛸 סקייטבורד מעופף (רעיון של עומר): בחנות. בלי גלגלים, ומחזיקים את הקפיצה כדי לרחף לאט למטה.
@@ -189,7 +189,7 @@
     .levelBtn b { display: block; font-size: 20px; }
     .levelBtn small { display: block; font-size: 12px; opacity: .8; margin-top: 2px; }
     /* 👤 השדה לשם של השחקן */
-    #nameInput {
+    #nameInput, .duelInput {
       font-family: inherit;
       font-size: 17px;
       width: 150px;
@@ -199,8 +199,22 @@
       text-align: center;
       direction: rtl;
     }
-    #nameInput:focus { outline: none; border-color: #ff6d00; }
-    #nameInput.missing { border-color: #e53935; background: #ffebee; }
+    #nameInput:focus, .duelInput:focus { outline: none; border-color: #ff6d00; }
+    #nameInput.missing, .duelInput.missing { border-color: #e53935; background: #ffebee; }
+    /* 👥 הדו-קרב: הכפתור במסך הפתיחה, הטבלה של התוצאות והקונפטי של המנצח */
+    .duelBtn { border-color: #7e57c2; background: #ede7f6; color: #4527a0; }
+    .duelTable { display: inline-block; margin: 6px 0; font-size: 19px; text-align: right; }
+    .duelTable div { padding: 3px 12px; border-radius: 10px; }
+    .duelTable .winner { background: #fff8e1; font-weight: bold; }
+    .duelWin { position: relative; overflow: hidden; }
+    .confetti {
+      position: absolute;
+      top: -24px;
+      font-size: 20px;
+      pointer-events: none;
+      animation: confettiFall 2.8s linear forwards;
+    }
+    @keyframes confettiFall { to { transform: translateY(330px) rotate(540deg); opacity: 0; } }
     #nameHint { color: #c62828; min-height: 0; margin: 0; }
     #nameHint:empty { display: none; }
     /* 🛒 החנות */
@@ -402,7 +416,9 @@ const WHEEL_COLOR = "#ffeb3b";          // הגלגלים
 const WELCOME_GIFT = 50;      // מתנת פתיחה: כמה מטבעות מקבלים בפעם הראשונה שנכנסים לחנות
 // ♾️ קוד הצ׳יט של המפתח (רעיון של עומר): מי שכותב אחד מהשמות האלה מקבל כסף בלי סוף!
 // 👻 והם יכולים גם להדליק "רובוט רפאים" — עוברים דרך כל המכשולים ואף פעם לא נתקעים
-const RICH_NAMES = ["עומר", "Omer"];
+// 🔐 24.10.2026 עומר החליף את הקוד: עכשיו רק "עומר 24788" (עם רווח) מקבל את כל זה. "עומר" לבד = שחקן רגיל
+const RICH_NAMES = ["עומר 24788"];
+const OLD_RICH_NAME = "עומר";    // 🔐 הפרופיל הישן של עומר — עובר לשם הסודי בפעם הראשונה שכותבים אותו
 const GHOST_SEE_THROUGH = 0.6;   // 👻 כמה הרובוט-רפאים שקוף (1 = בכלל לא שקוף, 0.3 = כמעט בלתי נראה)
 const SHOP = {
   color: [   // 🎨 הצבע של הרובוט: body = הגוף והראש, dark = הידיים, הרגליים והקווים
@@ -412,25 +428,39 @@ const SHOP = {
     { id: "purple", name: "סגול",   price: 40,  body: "#9575cd", dark: "#4527a0" },
     { id: "pink",   name: "ורוד",   price: 50,  body: "#f48fb1", dark: "#c2185b" },
     { id: "black",  name: "שחור נינג׳ה", price: 60, body: "#607d8b", dark: "#212121" },
-    { id: "gold",   name: "זהב",    price: 200, body: "#ffd54f", dark: "#c79100" }
+    { id: "gold",   name: "זהב",    price: 200, body: "#ffd54f", dark: "#c79100" },
+    // 💎 פריטי יוקרה (24.10.2026, עומר ביקש ״עוד 10 שעולים יותר כסף״)
+    { id: "emerald", name: "אמרלד",  price: 350,  body: "#66bb6a", dark: "#1b5e20" },
+    { id: "lava",    name: "לבה",    price: 500,  body: "#ff7043", dark: "#3e2723" },
+    { id: "diamond", name: "יהלום",  price: 1000, body: "#e1f5fe", dark: "#29b6f6" }
   ],
-  board: [   // 🛹 הסקייטבורד
+  board: [   // 🛹 הסקייטבורד. paint = הצבעים של הקרש, משמאל לימין
     { id: "orange",  name: "כתום",     price: 0 },
     { id: "flames",  name: "להבות",    price: 80 },
     { id: "rainbow", name: "קשת בענן", price: 120 },
-    { id: "hover",   name: "מעופף",    price: 300 }   // 🛸 בלי גלגלים — ומחזיקים קפיצה כדי לרחף!
+    { id: "hover",   name: "מעופף",    price: 300 },  // 🛸 בלי גלגלים — ומחזיקים קפיצה כדי לרחף!
+    { id: "goldboard", name: "זהב",    price: 400, paint: ["#c79100", "#fff176", "#ffb300"], under: "#5d4300" },
+    { id: "galaxy",    name: "גלקסיה", price: 600, paint: ["#1a237e", "#6a1b9a", "#ec407a", "#1a237e"], under: "#0d0b2e" },
+    { id: "neon",      name: "ניאון",  price: 800, paint: ["#00e676", "#00e5ff", "#d500f9"], under: "#1b1b3a" }
   ],
-  trail: [   // ✨ השובל שנשאר מאחורי הרובוט כשהוא נוסע
+  trail: [   // ✨ השובל שנשאר מאחורי הרובוט כשהוא נוסע. colors = הצבעים של הנצנצים
     { id: "none",    name: "בלי",      price: 0 },
     { id: "sparkle", name: "נצנצים",   price: 60 },
-    { id: "rainbow", name: "קשת",      price: 150 }
+    { id: "rainbow", name: "קשת",      price: 150 },
+    { id: "ice",     name: "קרח",      price: 350, colors: ["#ffffff", "#e1f5fe", "#81d4fa", "#4fc3f7"] },
+    { id: "fire",    name: "אש",       price: 450, colors: ["#ff1744", "#ff9100", "#ffea00", "#ff3d00"] },
+    { id: "stars",   name: "גלקסיה",   price: 700, colors: ["#7c4dff", "#e040fb", "#ffffff", "#40c4ff"] }
   ],
   hat: [     // 🎩 הכובע
     { id: "none",   name: "בלי",        price: 0 },
     { id: "cap",    name: "מצחייה",     price: 40 },
     { id: "cat",    name: "אוזני חתול", price: 60 },
     { id: "pirate", name: "פיראט",      price: 100 },
-    { id: "crown",  name: "כתר",        price: 250 }
+    { id: "crown",  name: "כתר",        price: 250 },
+    { id: "party",   name: "מסיבה",     price: 350 },
+    { id: "wizard",  name: "קוסם",      price: 500 },
+    { id: "unicorn", name: "חד-קרן",    price: 700 },
+    { id: "halo",    name: "הילה",      price: 900 }
   ]
 };
 const HOVER_FALL = 1.5;       // 🛸 כמה מהר הסקייטבורד המעופף יורד כשמחזיקים את הקפיצה (קטן = מרחף לאט יותר)
@@ -503,6 +533,8 @@ let level = LEVELS[levelKey];   // ההגדרות של הדרגה הזאת (מה
 let score = 0;              // כמה נקודות צברנו
 let tricks = 0;             // כמה סלטות שלמות עשינו במשחק הזה
 // 👤 מי משחק עכשיו. לכל שם יש "פרופיל" משלו: קופה, בגדים ושיאים (נשמר בדפדפן)
+let duel = null;                 // 👥 null = משחק רגיל. בדו-קרב: השמות, הנקודות ותור של מי
+let duelNames = ["סבא", "עומר"]; // 👥 השמות שכתבו בדו-קרב הקודם (או ברירת המחדל)
 let player = loadJSON("omer-skate-player", "");
 let profile = loadProfile(player);
 let best = loadBest();      // השיא של השחקן הזה בדרגה הזאת
@@ -746,9 +778,14 @@ function pressJump() {
     if (ensurePlayer()) startGame();         // 👤 מתחילים רק כשיש שם
     return;
   }
+  if (state === "duelSetup") return;          // 👥 במסך ההכנה של הדו-קרב — בוחרים דרגה בכפתור
   if (state === "over") {
     // מחכים חצי שנייה אחרי שנתקעים, כדי שלחיצה של קפיצה לא תתחיל משחק חדש בטעות
-    if (performance.now() - overTime > 600) startGame();
+    if (performance.now() - overTime > 600) {
+      if (!duel) startGame();
+      else if (duel.done) duelAgain();         // 👥 הדו-קרב נגמר — עוד סיבוב!
+      else duelNext();                         // 👥 תור השחקן השני
+    }
     return;
   }
   if (robot.onGround) doJump();
@@ -791,7 +828,8 @@ function crash(reason) {
     saveProfile();
   }
   updateScoreboard();
-  showOverScreen();
+  if (duel) duelTurnOver();   // 👥 בדו-קרב — עוברים לתור הבא (או מכריזים מי ניצח)
+  else showOverScreen();
 }
 
 // ------------------------------------------------------------
@@ -944,10 +982,11 @@ function showStartScreen() {
     '<div class="line">עזרו לרובוט לקפוץ מעל המכשולים ברחוב!</div>' +
     '<div class="line">' + JUMP_HOW + ' · ' + FLIP_HOW + '</div>' +
     '<div class="line">כל ' + prizeEvery() + ' מטבעות <span class="coin"></span> = מכשול נעלם 🎁 · רמפות 🛹 מעיפות גבוה</div>' +
-    '<div class="line gold">חדש! ❤️ 3 נשמות · 🛸 סקייטבורד מעופף · 👤 שמות · 🛒 חנות</div>' +
+    '<div class="line gold">חדש! 👥 דו-קרב · ❤️ 3 נשמות · 🛸 סקייטבורד מעופף · 🛒 חנות</div>' +
     '<div class="line nameRow">👤 <b>השם שלי:</b> ' +
       '<input id="nameInput" maxlength="12" autocomplete="off" placeholder="כתבו כאן את השם" value="' + escapeHtml(player) + '">' +
-      ' <button class="shopBtn" data-shop-open="1">🛒 חנות · 💰 ' + bankText() + '</button></div>' +
+      ' <button class="shopBtn" data-shop-open="1">🛒 חנות · 💰 ' + bankText() + '</button>' +
+      ' <button class="shopBtn duelBtn" data-duel="1">👥 דו-קרב</button></div>' +
     '<div class="line small" id="nameHint"></div>' +
     '<div class="line"><b>בחרו דרגה:</b>' + (TOUCH ? '' : ' <span class="small">(או 1 / 2 / 3)</span>') +
       (isRich() ? ' &nbsp; <button class="shopBtn ghostBtn" data-ghost="1">👻 רפאים: ' +
@@ -1000,6 +1039,144 @@ function overStats() {
 }
 
 // ------------------------------------------------------------
+//  👥 דו-קרב: סבא נגד עומר (רעיון של עומר וסבא, 24.10.2026)
+//  כל אחד משחק בתורו עם כל הנשמות. מי שצובר יותר נקודות — מנצח! 👑
+//  בדו-קרב הרובוט רפאים כבוי, כדי שיהיה הוגן 😉
+// ------------------------------------------------------------
+// מסך ההכנה: שני שמות ודרגה
+function showDuelSetup() {
+  state = "duelSetup";
+  card.classList.remove("shopMode");
+  let buttons = "";
+  for (const key of ["easy", "medium", "hard"]) {
+    const L = LEVELS[key];
+    buttons +=
+      '<button class="levelBtn' + (key === levelKey ? ' chosen' : '') + '" data-level="' + key + '" data-duellevel="' + key + '">' +
+      '<b>' + L.ICON + ' ' + L.NAME + '</b><small>' + L.ABOUT + '</small></button>';
+  }
+  card.innerHTML =
+    '<div class="big">👥 דו-קרב!</div>' +
+    '<div class="line">כל אחד משחק בתורו עם ' + LIVES + ' ❤️. מי שצובר יותר נקודות — מנצח! 👑</div>' +
+    '<div class="line nameRow">🥇 <b>מתחיל:</b> ' +
+      '<input id="duelA" class="duelInput" maxlength="12" autocomplete="off" value="' + escapeHtml(duelNames[0]) + '"></div>' +
+    '<div class="line nameRow">🥈 <b>אחריו:</b> ' +
+      '<input id="duelB" class="duelInput" maxlength="12" autocomplete="off" value="' + escapeHtml(duelNames[1]) + '"></div>' +
+    '<div class="line small" id="nameHint"></div>' +
+    '<div class="line"><b>בחרו דרגה ומתחילים:</b></div>' +
+    '<div class="levels">' + buttons + '</div>' +
+    '<button class="menuBtn" data-menu="1">↩️ חזרה</button>';
+  overlay.classList.remove("hidden");
+}
+
+// לוחצים על דרגה במסך ההכנה — בודקים את השמות ומתחילים
+function startDuel(key) {
+  const inA = document.getElementById("duelA");
+  const inB = document.getElementById("duelB");
+  const a = cleanName(inA.value);
+  const b = cleanName(inB.value);
+  const hint = document.getElementById("nameHint");
+  if (!a || !b) {                                  // חסר שם? מסמנים באדום
+    if (!a) inA.classList.add("missing");
+    if (!b) inB.classList.add("missing");
+    hint.textContent = "✍️ כתבו את השמות של שני השחקנים";
+    return;
+  }
+  if (a.toLowerCase() === b.toLowerCase()) {       // אותו שם פעמיים — אי אפשר לשחק נגד עצמך 😄
+    inB.classList.add("missing");
+    hint.textContent = "✍️ צריך שני שמות שונים";
+    return;
+  }
+  duelNames = [a, b];
+  // מי שיש לו כסף בלי סוף נטען ראשון — כדי שהשיאים הישנים במכשיר יעברו אליו, ולא לשחקן השני
+  for (const n of [a, b].sort((x, y) => richName(y) - richName(x))) loadProfile(n);
+  duel = { names: [a, b], scores: [null, null], turn: 0, done: false, prevPlayer: player };
+  startAudio();
+  chooseLevel(key);
+  startDuelTurn();
+}
+
+// מתחילים את התור של השחקן שעכשיו תורו
+function startDuelTurn() {
+  usePlayer(duel.names[duel.turn]);
+  startGame();
+  addPopup("👤 תור של " + duel.names[duel.turn] + "!", "rtl", "#4527a0", 0, W / 2, 100, 0.008);
+  if (duel.turn === 1) {                           // לשחקן השני מזכירים כמה צריך לעבור
+    addPopup("🎯 צריך לעבור " + duel.scores[0], "rtl", "#e65100", 0, W / 2, 135, 0.008);
+  }
+}
+
+// התור נגמר: שומרים את הנקודות. אחרי השחקן הראשון — מחכים לשני. אחרי השני — מכריזים!
+function duelTurnOver() {
+  duel.scores[duel.turn] = score;
+  if (duel.turn === 0) {
+    const [a, b] = duel.names;
+    card.classList.remove("shopMode");
+    card.innerHTML =
+      '<div class="big">👏 ' + escapeHtml(a) + ': <span class="gold">' + score + '</span> נקודות!</div>' +
+      overStats() +
+      (newRecord ? '<div class="line gold">🏆 וזה גם שיא חדש!</div>' : '') +
+      '<div class="line">עכשיו תור של <b>' + escapeHtml(b) + '</b> — צריך לעבור <b>' + score + '</b> 🎯</div>' +
+      '<button class="bigBtn" data-duelnext="1">' + escapeHtml(b) + ', יאללה! ▶️</button>' +
+      (TOUCH ? '' : '<div class="small">(או לחצו רווח)</div>');
+    overlay.classList.remove("hidden");
+    return;
+  }
+  duel.done = true;
+  showDuelWinner();
+}
+
+// 👑 מסך המנצח: הטבלה, כתר, קונפטי ותרועה
+function showDuelWinner() {
+  const [a, b] = duel.names;
+  const [sa, sb] = duel.scores;
+  const win = sa > sb ? 0 : sb > sa ? 1 : -1;     // -1 = תיקו
+  const row = i => '<div' + (i === win ? ' class="winner"' : '') + '>' +
+                   (i === win ? '👑 ' : '') + escapeHtml(duel.names[i]) + ': ' + duel.scores[i] + '</div>';
+  let confetti = "";
+  const bits = ["🎉", "🎊", "⭐", "✨", "🎈"];
+  for (let i = 0; i < 24; i++) {
+    confetti += '<span class="confetti" style="left:' + Math.round(rand(0, 95)) + '%;animation-delay:' +
+                rand(0, 1.2).toFixed(2) + 's">' + bits[i % bits.length] + '</span>';
+  }
+  card.classList.remove("shopMode");
+  card.innerHTML =
+    '<div class="duelWin">' + confetti +
+    (win < 0 ? '<div class="big">🤝 תיקו! שניכם אלופים!</div>'
+             : '<div class="big">👑 הניצחון של ' + escapeHtml(duel.names[win]) + '!</div>') +
+    '<div class="duelTable">' + row(0) + row(1) + '</div>' +
+    '<div><button class="bigBtn" data-duelagain="1">עוד דו-קרב! 🔄</button> ' +
+    '<button class="menuBtn" data-menu="1">🏠 למסך הפתיחה</button></div>' +
+    (TOUCH ? '' : '<div class="small">(או לחצו רווח)</div>') +
+    '</div>';
+  overlay.classList.remove("hidden");
+  soundRecord();                                   // תרועת ניצחון 🎺
+}
+
+// תור השחקן השני
+function duelNext() {
+  if (!duel || duel.turn !== 0 || duel.scores[0] === null) return;
+  duel.turn = 1;
+  startDuelTurn();
+}
+
+// עוד דו-קרב — עם אותם שמות ואותה דרגה
+function duelAgain() {
+  if (!duel) return;
+  duel.scores = [null, null];
+  duel.turn = 0;
+  duel.done = false;
+  startDuelTurn();
+}
+
+// יוצאים מהדו-קרב וחוזרים לשחקן שהיה לפני
+function endDuel() {
+  if (!duel) return;
+  const prev = duel.prevPlayer;
+  duel = null;
+  if (prev) usePlayer(prev);
+}
+
+// ------------------------------------------------------------
 //  🛒 החנות של הרובוט
 // ------------------------------------------------------------
 const SHOP_SHELVES = [["color", "🎨 צבע"], ["board", "🛹 סקייטבורד"], ["trail", "✨ שובל"], ["hat", "🎩 כובע"]];
@@ -1036,16 +1213,18 @@ function swatch(cat, it) {
     const bg = it.id === "flames" ? "linear-gradient(90deg,#b71c1c,#ff6d00,#ffea00)" :
                it.id === "rainbow" ? "linear-gradient(90deg,#e53935,#fb8c00,#fdd835,#43a047,#1e88e5,#8e24aa)" :
                it.id === "hover" ? "linear-gradient(90deg,#5e35b1,#00e5ff)" :
+               it.paint ? "linear-gradient(90deg," + it.paint.join(",") + ")" :
                BOARD_COLOR;
     return '<span class="sw board" style="background:' + bg + '"></span>' + (it.id === "hover" ? "🛸" : "");
   }
   if (cat === "trail") {
     if (it.id === "none") return '<span class="hatIcon">—</span>';
     const bg = it.id === "rainbow" ? "linear-gradient(90deg,#e53935,#fdd835,#43a047,#1e88e5,#8e24aa)" :
-                                     "radial-gradient(circle,#fff59d 30%,#ffb300 70%)";
+               it.colors ? "radial-gradient(circle," + it.colors[0] + " 25%," + it.colors[2] + " 75%)" :
+                           "radial-gradient(circle,#fff59d 30%,#ffb300 70%)";
     return '<span class="sw" style="background:' + bg + '"></span>';
   }
-  const icons = { none: "—", cap: "🧢", cat: "🐱", pirate: "☠", crown: "👑" };
+  const icons = { none: "—", cap: "🧢", cat: "🐱", pirate: "☠", crown: "👑", party: "🎉", wizard: "🧙", unicorn: "🦄", halo: "😇" };
   return '<span class="hatIcon">' + (icons[it.id] || "🎩") + '</span>';
 }
 
@@ -1180,6 +1359,13 @@ function loadProfile(name) {
   if (!name) return emptyProfile();
   const saved = loadJSON(profileKey(name), null);
   if (saved) return fixProfile(saved);
+  // 🔐 השם הסודי נכתב בפעם הראשונה? מעבירים אליו את כל מה שהיה לעומר: קניות, בגדים ושיאים
+  const oldRich = richName(name) ? loadJSON(profileKey(OLD_RICH_NAME), null) : null;
+  if (oldRich) {
+    const p = fixProfile(oldRich);
+    saveJSON(profileKey(name), p);
+    return p;
+  }
   let p = emptyProfile();
   if (!loadJSON("omer-skate-migrated", false)) {
     p = oldSavedData();
@@ -1222,11 +1408,14 @@ function usePlayer(name) {
 
 // ♾️ האם לשחקן הזה יש כסף בלי סוף? (השמות ב-RICH_NAMES בראש הקוד)
 function isRich() {
-  return RICH_NAMES.some(n => n.toLowerCase() === player.toLowerCase());
+  return richName(player);
 }
-// 👻 האם הרובוט רפאים פועל עכשיו? (רק למי שיש לו כסף בלי סוף, ורק אם לא כיבה את המתג)
+function richName(name) {
+  return RICH_NAMES.some(n => n.toLowerCase() === String(name).toLowerCase());
+}
+// 👻 האם הרובוט רפאים פועל עכשיו? (רק למי שיש לו כסף בלי סוף, ורק אם לא כיבה את המתג. בדו-קרב — אף פעם)
 function ghostActive() {
-  return isRich() && profile.ghost !== false;
+  return !duel && isRich() && profile.ghost !== false;
 }
 // כמה כסף בקופה — כמספר, או ∞ למי שיש לו כסף בלי סוף
 function bankText() {
@@ -1300,6 +1489,11 @@ function saveLevel(key) {
 //  🎯 המקלדת, העכבר והמגע
 // ------------------------------------------------------------
 document.addEventListener("keydown", function (e) {
+  // 👥 כותבים שמות לדו-קרב — המקשים רק כותבים אותיות
+  if (e.target && e.target.classList && e.target.classList.contains("duelInput")) {
+    e.target.classList.remove("missing");
+    return;
+  }
   // 👤 כותבים את השם — המקשים כותבים אותיות ולא מקפיצים את הרובוט. Enter = מתחילים לשחק!
   if (e.target && e.target.id === "nameInput") {
     e.target.classList.remove("missing");
@@ -1325,7 +1519,7 @@ document.addEventListener("keydown", function (e) {
   if (e.code === "Escape") stopGhostRun();             // 🏁 Escape = מסיימים סיבוב רפאים
   // 1 / 2 / 3 = בחירת דרגה (רק כשלא באמצע משחק)
   const digits = { Digit1: "easy", Digit2: "medium", Digit3: "hard", Numpad1: "easy", Numpad2: "medium", Numpad3: "hard" };
-  if (digits[e.code] && state !== "playing" && !e.repeat) {
+  if (digits[e.code] && state !== "playing" && state !== "duelSetup" && !duel && !e.repeat) {
     if (!ensurePlayer()) return;
     startAudio();
     chooseLevel(digits[e.code]);
@@ -1366,6 +1560,24 @@ overlay.addEventListener("click", function (e) {
     openShop();
     return;
   }
+  // 👥 הדו-קרב: לפתוח את מסך ההכנה, לבחור דרגה, תור הבא, או עוד סיבוב
+  if (btn && btn.dataset.duel) {
+    startAudio();
+    showDuelSetup();
+    return;
+  }
+  if (btn && btn.dataset.duellevel) {
+    startDuel(btn.dataset.duellevel);
+    return;
+  }
+  if (btn && btn.dataset.duelnext) {
+    duelNext();
+    return;
+  }
+  if (btn && btn.dataset.duelagain) {
+    duelAgain();
+    return;
+  }
   if (btn && btn.dataset.level) {
     if (!ensurePlayer()) return;
     startAudio();
@@ -1374,6 +1586,7 @@ overlay.addEventListener("click", function (e) {
     return;
   }
   if (btn && btn.dataset.menu) {
+    endDuel();                               // 👥 אם היינו בדו-קרב — יוצאים ממנו
     showStartScreen();
     return;
   }
@@ -1639,7 +1852,10 @@ function emitTrail() {
   trailTick++;
   if (trailTick % 2) return;
   let color;
-  if (skin.trail === "rainbow") {               // 🌈 קשת: הצבעים באים אחד אחרי השני
+  const it = findItem("trail", skin.trail);
+  if (it && it.colors) {                        // 💎 שובל יוקרה: הצבעים כתובים בחנות
+    color = it.colors[Math.floor(Math.random() * it.colors.length)];
+  } else if (skin.trail === "rainbow") {               // 🌈 קשת: הצבעים באים אחד אחרי השני
     const rainbow = ["#e53935", "#fb8c00", "#fdd835", "#43a047", "#1e88e5", "#8e24aa"];
     color = rainbow[Math.floor(trailTick / 2) % rainbow.length];
   } else {                                      // ✨ נצנצים: זהב וצהוב
@@ -2505,6 +2721,12 @@ function boardPaint(kind, x) {
     g.addColorStop(0, "#5e35b1"); g.addColorStop(1, "#00e5ff");
     return { under: "#1a0d3d", main: g, shine: "rgba(178, 255, 255, 0.95)" };
   }
+  const it = findItem("board", kind);
+  if (it && it.paint) {                         // 💎 סקייטבורד יוקרה: הצבעים כתובים בחנות
+    const g = ctx.createLinearGradient(x - 36, 0, x + 36, 0);
+    for (let i = 0; i < it.paint.length; i++) g.addColorStop(i / (it.paint.length - 1), it.paint[i]);
+    return { under: it.under, main: g, shine: "rgba(255, 255, 255, 0.8)" };
+  }
   return { under: shade(BOARD_COLOR, -0.4), main: BOARD_COLOR, shine: shade(BOARD_COLOR, 0.45) };
 }
 
@@ -2567,6 +2789,46 @@ function drawHat(kind, x, y) {
     ctx.fillStyle = "#1e88e5";
     ctx.beginPath(); ctx.arc(x - 8, y - 92, 1.8, 0, Math.PI * 2); ctx.fill();
     ctx.beginPath(); ctx.arc(x + 8, y - 92, 1.8, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "party") {
+    ctx.fillStyle = "#ec407a";                                         // 🎉 חרוט מסיבה ורוד
+    ctx.beginPath(); ctx.moveTo(x - 11, y - 89); ctx.lineTo(x + 2, y - 104); ctx.lineTo(x + 11, y - 89);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#ffeb3b";                                         // נקודות צהובות
+    for (const [dx, dy] of [[-4, -92], [4, -93], [0, -98]]) {
+      ctx.beginPath(); ctx.arc(x + dx, y + dy, 1.6, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.fillStyle = "#00e5ff";                                         // פונפון למעלה
+    ctx.beginPath(); ctx.arc(x + 2, y - 105, 2.6, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "wizard") {
+    ctx.fillStyle = "#3949ab";                                         // 🧙 כובע קוסם כחול, שהקצה שלו נוטה אחורה
+    ctx.beginPath(); ctx.moveTo(x - 17, y - 89); ctx.quadraticCurveTo(x - 4, y - 99, x - 12, y - 107);
+    ctx.quadraticCurveTo(x + 2, y - 100, x + 17, y - 89); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#283593";                                         // השוליים הרחבים
+    roundRect(x - 20, y - 92, 40, 4, 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffd600";                                         // כוכב וירח קטנים
+    ctx.beginPath(); ctx.arc(x + 2, y - 96, 1.8, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x - 6, y - 99, 1.3, 0, Math.PI * 2); ctx.fill();
+  } else if (kind === "unicorn") {
+    const g = ctx.createLinearGradient(x, y - 107, x + 4, y - 90);     // 🦄 קרן בצבעי פנינה
+    g.addColorStop(0, "#fff9c4"); g.addColorStop(0.5, "#f8bbd0"); g.addColorStop(1, "#b39ddb");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(x - 4, y - 89); ctx.lineTo(x + 3, y - 107); ctx.lineTo(x + 5, y - 89);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.9)";                      // פסים מסובבים על הקרן
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(x - 2, y - 94); ctx.lineTo(x + 4, y - 96);
+    ctx.moveTo(x - 1, y - 99); ctx.lineTo(x + 4, y - 101);
+    ctx.stroke();
+  } else if (kind === "halo") {
+    ctx.save();                                                        // 😇 הילה זהובה שזוהרת מעל הראש
+    ctx.shadowColor = "rgba(255, 235, 59, 0.9)";
+    ctx.shadowBlur = 8;
+    ctx.strokeStyle = "#ffd600";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.ellipse(x, y - 101, 13, 4, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
 }
 
@@ -2793,7 +3055,9 @@ function drawShopPreview(now) {
   pctx.setTransform(1.3, 0, 0, 1.3, 2, 4);          // בגדול: פי 1.3
   // ✨ השובל שהרובוט מודד — כמה נקודות צבעוניות מאחורי הסקייטבורד
   if (shopTry.trail && shopTry.trail !== "none") {
-    const dots = shopTry.trail === "rainbow" ? ["#8e24aa", "#1e88e5", "#43a047", "#fdd835", "#fb8c00", "#e53935"]
+    const fancy = findItem("trail", shopTry.trail);
+    const dots = fancy && fancy.colors ? fancy.colors.concat(fancy.colors.slice(0, 2)) :
+                 shopTry.trail === "rainbow" ? ["#8e24aa", "#1e88e5", "#43a047", "#fdd835", "#fb8c00", "#e53935"]
                                              : ["#fff59d", "#ffd600", "#ffe082", "#ffd600", "#fff59d", "#ffb300"];
     for (let i = 0; i < dots.length; i++) {
       pctx.fillStyle = dots[i];
